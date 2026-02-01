@@ -1,0 +1,14 @@
+# All dependencies for automation scripts
+# Install with: pip install -r requirements.txt
+
+# Image processing
+Pillow>=9.0.0
+
+# PDF generation
+reportlab>=3.6.0
+
+# Word document manipulation
+python-docx>=0.8.11
+
+# Word to PDF (Windows only)
+pywin32>=305; sys_platform == "win32"
