@@ -32,3 +32,8 @@ output/
 
 # Test/sample files
 *.test.*
+
+# PyInstaller
+build/
+dist/
+*.spec
