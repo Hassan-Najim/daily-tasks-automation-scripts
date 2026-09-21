@@ -6,10 +6,16 @@ single portable Windows executable.
 
 ## Run it now (zero install)
 
-Open PowerShell on Windows 10/11 and paste:
+Open **PowerShell** on Windows 10/11 and paste:
 
 ```powershell
 irm https://raw.githubusercontent.com/Hassan-Najim/daily-tasks-automation-scripts/main/launcher.ps1 | iex
+```
+
+**Using cmd.exe instead?** Either type `powershell` and press Enter first, or paste this directly:
+
+```bat
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Hassan-Najim/daily-tasks-automation-scripts/main/launcher.ps1 | iex"
 ```
 
 The launcher downloads the latest release (SHA256-verified), caches it in
@@ -24,6 +30,12 @@ Run the launcher once and answer **y** at the prompt — or install directly:
 iex "& { $(irm https://raw.githubusercontent.com/Hassan-Najim/daily-tasks-automation-scripts/main/launcher.ps1) } -Install"
 ```
 
+From **cmd.exe**:
+
+```bat
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Hassan-Najim/daily-tasks-automation-scripts/main/launcher.ps1 -OutFile $env:TEMP\daily-tasks.ps1; & \"$env:TEMP\daily-tasks.ps1\" -Install"
+```
+
 This drops a `daily-tasks` command into your user PATH (works in cmd,
 PowerShell, and Win+R). Open a **new** terminal and type:
 
@@ -35,6 +47,12 @@ Uninstall anytime:
 
 ```powershell
 iex "& { $(irm https://raw.githubusercontent.com/Hassan-Najim/daily-tasks-automation-scripts/main/launcher.ps1) } -Uninstall"
+```
+
+From **cmd.exe**:
+
+```bat
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Hassan-Najim/daily-tasks-automation-scripts/main/launcher.ps1 -OutFile $env:TEMP\daily-tasks.ps1; & \"$env:TEMP\daily-tasks.ps1\" -Uninstall"
 ```
 
 ## Scripts
