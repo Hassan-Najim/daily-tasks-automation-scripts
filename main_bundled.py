@@ -1,24 +1,51 @@
 """
-Automation Scripts - Bundled Version
-All scripts embedded for standalone executable compilation.
+Daily Tasks - Automation Suite (Bundled Version)
+All scripts embedded, packaged as a Textual TUI for standalone
+executable compilation.
 
-This file is auto-usable but designed to be compiled with PyInstaller.
+Run the TUI:       python main_bundled.py
+Build the exe:     python main_bundled.py --build
 """
 
 import os
+import re
 import sys
-import tempfile
+import json
+import time
+import threading
+from dataclasses import dataclass
 from pathlib import Path
+
+from rich.text import Text
+
+try:
+    from textual import work
+    from textual import on
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+    from textual.containers import Horizontal, Vertical
+    from textual.screen import ModalScreen
+    from textual.widgets import Footer, Header, Input, Label, ListItem, ListView, RichLog, Static
+except ImportError:
+    print("Error: textual is not installed. Run: pip install textual")
+    sys.exit(1)
+
+
+__version__ = "1.0.0"
+
+APP_NAME = "daily-tasks"
 
 
 # =============================================================================
 # EMBEDDED SCRIPTS
 # =============================================================================
+# Every script accepts:
+#   log(prompt)            -> output sink (default: print)
+#   ask(prompt, options)   -> ask the user to pick one option, returns the
+#                             chosen string or None if cancelled
 
-# -----------------------------------------------------------------------------
-# PDF: Images to PDF
-# -----------------------------------------------------------------------------
-def images_to_pdf_main():
+
+def images_to_pdf_main(log=print, ask=None):
     from PIL import Image
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
@@ -31,7 +58,7 @@ def images_to_pdf_main():
     images.sort()
 
     if not images:
-        print("No images found in the current folder.")
+        log("No images found in the current folder.")
         return
 
     c = canvas.Canvas(output_pdf, pagesize=letter)
@@ -39,8 +66,8 @@ def images_to_pdf_main():
 
     for img in images:
         img_path = os.path.join(folder_path, img)
-        print(f"Processing: {img}")
-        
+        log(f"Processing: {img}")
+
         image = Image.open(img_path)
         aspect = image.width / float(image.height)
 
@@ -58,16 +85,11 @@ def images_to_pdf_main():
         c.showPage()
 
     c.save()
-    print(f"\nPDF saved: {output_pdf}")
+    log(f"\nPDF saved: {output_pdf}")
 
 
-# -----------------------------------------------------------------------------
-# PDF: Images to PDF (Custom Aspect)
-# -----------------------------------------------------------------------------
-def images_to_pdf_custom_main():
-    import re
-    from datetime import datetime
-    from PIL import Image, ImageOps, ExifTags
+def images_to_pdf_custom_main(log=print, ask=None):
+    from PIL import Image, ImageOps
     from reportlab.pdfgen import canvas
 
     def natural_key(s):
@@ -82,15 +104,15 @@ def images_to_pdf_custom_main():
               if f.lower().endswith(extensions)]
 
     if not images:
-        print("No images found in the current folder.")
+        log("No images found in the current folder.")
         return
 
     images.sort(key=lambda p: natural_key(os.path.basename(p)))
     c = canvas.Canvas(output_pdf)
 
     for img_path in images:
-        print(f"Processing: {os.path.basename(img_path)}")
-        
+        log(f"Processing: {os.path.basename(img_path)}")
+
         with Image.open(img_path) as im:
             im = ImageOps.exif_transpose(im)
             px_w, px_h = im.size
@@ -105,28 +127,23 @@ def images_to_pdf_custom_main():
             c.showPage()
 
     c.save()
-    print(f"\nPDF saved: {output_pdf}")
+    log(f"\nPDF saved: {output_pdf}")
 
 
-# -----------------------------------------------------------------------------
-# PDF: Word to PDF
-# -----------------------------------------------------------------------------
-def word_to_pdf_main():
-    import time
-    
+def word_to_pdf_main(log=print, ask=None):
     if sys.platform != "win32":
-        print("Error: Word to PDF only works on Windows with Microsoft Word installed.")
+        log("Error: Word to PDF only works on Windows with Microsoft Word installed.")
         return
 
     try:
         import pythoncom
         import win32com.client
     except ImportError:
-        print("Error: pywin32 not installed. Run: pip install pywin32")
+        log("Error: pywin32 not installed. Run: pip install pywin32")
         return
 
     folder = Path(os.getcwd())
-    
+
     files = [
         p for p in folder.iterdir()
         if p.is_file()
@@ -135,7 +152,7 @@ def word_to_pdf_main():
     ]
 
     if not files:
-        print("No .doc or .docx files found in current folder.")
+        log("No .doc or .docx files found in current folder.")
         return
 
     pythoncom.CoInitialize()
@@ -150,13 +167,13 @@ def word_to_pdf_main():
     try:
         for doc_path in files:
             pdf_path = doc_path.with_suffix(".pdf")
-            
+
             if pdf_path.exists():
-                print(f"Skipping (exists): {doc_path.name}")
+                log(f"Skipping (exists): {doc_path.name}")
                 continue
 
-            print(f"Converting: {doc_path.name}")
-            
+            log(f"Converting: {doc_path.name}")
+
             success = False
             for attempt in range(1, 4):
                 try:
@@ -183,33 +200,30 @@ def word_to_pdf_main():
                 except Exception as e:
                     try:
                         doc.Close(False)
-                    except:
+                    except Exception:
                         pass
                     if attempt < 3:
                         time.sleep(1.2 * attempt)
                     else:
                         failures.append((doc_path.name, str(e)))
-            
+
             if not success:
-                print(f"  FAILED: {doc_path.name}")
+                log(f"  FAILED: {doc_path.name}")
     finally:
         word.Quit()
         try:
             pythoncom.CoUninitialize()
-        except:
+        except Exception:
             pass
 
-    print(f"\nConverted: {converted}")
+    log(f"\nConverted: {converted}")
     if failures:
-        print(f"Failed: {len(failures)}")
+        log(f"Failed: {len(failures)}")
         for name, err in failures:
-            print(f"  - {name}: {err}")
+            log(f"  - {name}: {err}")
 
 
-# -----------------------------------------------------------------------------
-# Image: Phone Frame Overlay
-# -----------------------------------------------------------------------------
-def phone_frame_overlay_main():
+def phone_frame_overlay_main(log=print, ask=None):
     from PIL import Image
 
     folder = os.getcwd()
@@ -218,13 +232,13 @@ def phone_frame_overlay_main():
     output_folder = os.path.join(folder, 'output')
 
     if not os.path.exists(frame_path):
-        print(f"Error: frame.png not found in {folder}")
-        print("Please add a frame.png file (device mockup with transparency)")
+        log(f"Error: frame.png not found in {folder}")
+        log("Please add a frame.png file (device mockup with transparency)")
         return
 
     if not os.path.exists(screens_folder):
-        print(f"Error: 'screens' folder not found in {folder}")
-        print("Please create a 'screens' folder and add your screenshots")
+        log(f"Error: 'screens' folder not found in {folder}")
+        log("Please create a 'screens' folder and add your screenshots")
         return
 
     os.makedirs(output_folder, exist_ok=True)
@@ -236,11 +250,11 @@ def phone_frame_overlay_main():
     for filename in os.listdir(screens_folder):
         if filename.lower().endswith('.png') and not filename.startswith('.'):
             screen_path = os.path.join(screens_folder, filename)
-            
+
             try:
                 screen = Image.open(screen_path).convert('RGBA')
             except Exception as e:
-                print(f"Skipping {filename}: {e}")
+                log(f"Skipping {filename}: {e}")
                 continue
 
             canvas = Image.new('RGBA', (frame_width, frame_height), (0, 0, 0, 0))
@@ -252,16 +266,13 @@ def phone_frame_overlay_main():
 
             output_path = os.path.join(output_folder, filename)
             final_image.save(output_path, format='PNG')
-            print(f"Created: {filename}")
+            log(f"Created: {filename}")
             processed += 1
 
-    print(f"\nProcessed {processed} images -> output/")
+    log(f"\nProcessed {processed} images -> output/")
 
 
-# -----------------------------------------------------------------------------
-# Image: Format Converter
-# -----------------------------------------------------------------------------
-def image_format_converter_main():
+def image_format_converter_main(log=print, ask=None):
     from PIL import Image
 
     folder_path = os.getcwd()
@@ -281,65 +292,61 @@ def image_format_converter_main():
                     else:
                         img = img.convert('RGB')
                     img.save(new_filepath, "PNG")
-                
+
                 os.remove(file_path)
-                print(f"Converted: {filename} -> {new_filename}")
+                log(f"Converted: {filename} -> {new_filename}")
                 converted += 1
             except Exception as e:
-                print(f"Failed: {filename}: {e}")
+                log(f"Failed: {filename}: {e}")
 
-    print(f"\nConverted {converted} images to PNG")
+    log(f"\nConverted {converted} images to PNG")
 
 
-# -----------------------------------------------------------------------------
-# Document: Word Find & Replace
-# -----------------------------------------------------------------------------
-def word_find_replace_main():
-    import json
+def word_find_replace_main(log=print, ask=None):
     from docx import Document
 
     folder = os.getcwd()
-    
-    # Look for corrections.json
+
     json_path = os.path.join(folder, "corrections.json")
     if not os.path.exists(json_path):
-        print("Error: corrections.json not found in current folder")
-        print("\nCreate a corrections.json file with format:")
-        print('[')
-        print('  {"OgSentence": "original text", "NewSentence": "replacement"},')
-        print('  ...')
-        print(']')
+        log("Error: corrections.json not found in current folder")
+        log("Create a corrections.json file with format:")
+        log('[{"OgSentence": "original text", "NewSentence": "replacement"}, ...]')
         return
 
-    # Find .docx file
-    docx_files = [f for f in os.listdir(folder) if f.endswith('.docx') and not f.startswith('~$')]
+    docx_files = [f for f in os.listdir(folder)
+                  if f.lower().endswith('.docx') and not f.startswith('~$')]
     if not docx_files:
-        print("Error: No .docx file found in current folder")
+        log("Error: No .docx file found in current folder")
         return
-    
+
     if len(docx_files) > 1:
-        print("Multiple .docx files found. Select one:")
-        for i, f in enumerate(docx_files, 1):
-            print(f"  {i}. {f}")
-        choice = input("Enter number: ").strip()
-        try:
-            doc_file = docx_files[int(choice) - 1]
-        except:
-            print("Invalid choice")
-            return
+        if ask is None:
+            log("Multiple .docx files found:")
+            for i, f in enumerate(docx_files, 1):
+                log(f"  {i}. {f}")
+            choice = input("Enter number: ").strip()
+            try:
+                doc_file = docx_files[int(choice) - 1]
+            except (ValueError, IndexError):
+                log("Invalid choice")
+                return
+        else:
+            doc_file = ask("Multiple .docx files found - select one", docx_files)
+            if doc_file is None:
+                log("Cancelled.")
+                return
     else:
         doc_file = docx_files[0]
 
     doc_path = os.path.join(folder, doc_file)
 
-    # Load corrections
     with open(json_path, 'r', encoding='utf-8') as f:
         corrections = json.load(f)
 
-    print(f"Document: {doc_file}")
-    print(f"Corrections: {len(corrections)}")
+    log(f"Document: {doc_file}")
+    log(f"Corrections: {len(corrections)}")
 
-    # Process document
     document = Document(doc_path)
     replacements = 0
 
@@ -375,102 +382,361 @@ def word_find_replace_main():
 
     output_path = doc_path.replace(".docx", "_updated.docx")
     document.save(output_path)
-    print(f"\nReplacements: {replacements}")
-    print(f"Saved: {output_path}")
+    log(f"\nReplacements: {replacements}")
+    log(f"Saved: {output_path}")
 
 
 # =============================================================================
-# MAIN MENU
+# SCRIPT REGISTRY
 # =============================================================================
 
-SCRIPTS = {
-    "pdf": [
-        ("Images to PDF", images_to_pdf_main),
-        ("Images to PDF (Custom Aspect)", images_to_pdf_custom_main),
-        ("Word to PDF", word_to_pdf_main),
-    ],
-    "image": [
-        ("Phone Frame Overlay", phone_frame_overlay_main),
-        ("Image Format Converter", image_format_converter_main),
-    ],
-    "document": [
-        ("Word Find & Replace", word_find_replace_main),
-    ],
-}
-
-CATEGORY_NAMES = {
-    "pdf": "PDF",
-    "image": "Image",
-    "document": "Document",
-}
+@dataclass
+class ScriptEntry:
+    name: str
+    category: str
+    description: str
+    notes: str
+    func: object
 
 
-def display_menu():
-    print("\n" + "="*50)
-    print("   AUTOMATION SCRIPTS")
-    print("="*50)
-    print(f"\n   Working directory: {os.getcwd()}")
+SCRIPTS = [
+    ScriptEntry(
+        name="Images to PDF",
+        category="PDF",
+        description="Combine every image in the working directory into a single "
+                    "output.pdf, centered on US Letter pages.",
+        notes="Supports PNG, JPG, JPEG, BMP, GIF. Landscape images fill page width, "
+              "portrait images fill page height.",
+        func=images_to_pdf_main,
+    ),
+    ScriptEntry(
+        name="Images to PDF (Custom Aspect)",
+        category="PDF",
+        description="Combine images into a single output.pdf where each page keeps "
+                    "the image's native size and aspect ratio (DPI-aware).",
+        notes="Supports PNG, JPG, JPEG, BMP, GIF, TIFF. Handles EXIF rotation and "
+              "natural filename ordering (img2 before img10).",
+        func=images_to_pdf_custom_main,
+    ),
+    ScriptEntry(
+        name="Word to PDF",
+        category="PDF",
+        description="Batch convert every .doc/.docx file in the working directory "
+                    "to PDF via Microsoft Word automation.",
+        notes="Windows + Microsoft Word required. Existing PDFs are skipped; failed "
+              "conversions are retried up to 3 times.",
+        func=word_to_pdf_main,
+    ),
+    ScriptEntry(
+        name="Phone Frame Overlay",
+        category="Image",
+        description="Composite device frame mockups over your screenshots.",
+        notes="Needs frame.png (transparent device frame) and a screens/ folder with "
+              "PNG screenshots. Results go to output/.",
+        func=phone_frame_overlay_main,
+    ),
+    ScriptEntry(
+        name="Image Format Converter",
+        category="Image",
+        description="Batch convert images in the working directory to PNG.",
+        notes="Supports JPG, JPEG, BMP, GIF, TIFF, WEBP. Original files are deleted "
+              "after successful conversion.",
+        func=image_format_converter_main,
+    ),
+    ScriptEntry(
+        name="Word Find & Replace",
+        category="Document",
+        description="Apply bulk sentence-level replacements to a Word document from "
+                    "a corrections.json list.",
+        notes="Needs corrections.json and at least one .docx in the working "
+              "directory. Result saved as *_updated.docx.",
+        func=word_find_replace_main,
+    ),
+]
 
-    index = 1
-    script_map = {}
 
-    for category, scripts in SCRIPTS.items():
-        print(f"\n[{CATEGORY_NAMES[category]}]")
-        for name, func in scripts:
-            print(f"  {index}. {name}")
-            script_map[index] = (name, func)
-            index += 1
+# =============================================================================
+# MODAL SCREENS
+# =============================================================================
 
-    print(f"\n  c. Change directory")
-    print(f"  q. Quit")
-    print("="*50)
+class InputModal(ModalScreen):
+    """Text input dialog. Dismisses with the entered string, or None on Escape."""
 
-    return script_map
+    def __init__(self, prompt: str, initial: str = "") -> None:
+        super().__init__()
+        self.prompt = prompt
+        self.initial = initial
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Label(self.prompt, id="input-modal-prompt"),
+            Input(value=self.initial, id="input-modal-field"),
+        )
+
+    def on_mount(self) -> None:
+        self.query_one("#input-modal-field", Input).focus()
+
+    @on(Input.Submitted)
+    def submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value)
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
 
 
-def change_directory():
-    new_dir = input("Enter path: ").strip()
-    if os.path.isdir(new_dir):
-        os.chdir(new_dir)
-        print(f"Changed to: {os.getcwd()}")
-    else:
-        print("Invalid directory")
+class SelectModal(ModalScreen):
+    """Option picker dialog. Dismisses with the chosen string, or None on Escape."""
+
+    def __init__(self, prompt: str, options: list) -> None:
+        super().__init__()
+        self.prompt = prompt
+        self.options = options
+        self._by_item = {}
+
+    def compose(self) -> ComposeResult:
+        items = [ListItem(Label(str(option))) for option in self.options]
+        yield Vertical(
+            Label(self.prompt, id="select-modal-prompt"),
+            ListView(*items, id="select-modal-list"),
+        )
+
+    def on_mount(self) -> None:
+        list_view = self.query_one("#select-modal-list", ListView)
+        for item, option in zip(list_view.children, self.options):
+            self._by_item[item] = str(option)
+        list_view.focus()
+
+    @on(ListView.Selected)
+    def selected(self, event: ListView.Selected) -> None:
+        self.dismiss(self._by_item.get(event.item))
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+
+
+# =============================================================================
+# TUI APPLICATION
+# =============================================================================
+
+class AutomationApp(App):
+    TITLE = "Daily Tasks - Automation Suite"
+    SUB_TITLE = f"v{__version__}"
+
+    CSS = """
+    Screen {
+        layout: vertical;
+    }
+    #body {
+        height: 1fr;
+    }
+    #sidebar {
+        width: 44;
+        border-right: solid $accent;
+        padding: 1 0;
+    }
+    #sidebar-header {
+        padding: 0 2;
+        color: $text-muted;
+        text-style: bold;
+    }
+    #script-list {
+        height: 1fr;
+        padding: 0 1;
+    }
+    #main {
+        padding: 1 2;
+    }
+    #script-title {
+        text-style: bold;
+        color: $text;
+        width: 1fr;
+    }
+    #script-category {
+        color: $accent;
+    }
+    #script-description {
+        margin-top: 1;
+        width: 1fr;
+    }
+    #script-notes {
+        margin-top: 1;
+        width: 1fr;
+        color: $text-muted;
+    }
+    #log-panel {
+        height: 16;
+        border-top: solid $accent;
+    }
+    InputModal Vertical {
+        height: auto;
+        margin: 4 8;
+        padding: 1 2;
+        background: $surface;
+        border: round $accent;
+    }
+    #input-modal-prompt {
+        width: 1fr;
+    }
+    SelectModal Vertical {
+        height: auto;
+        max-height: 60%;
+        margin: 2 8;
+        padding: 1 1;
+        background: $surface;
+        border: round $accent;
+    }
+    #select-modal-prompt {
+        padding: 0 1;
+    }
+    #select-modal-list {
+        height: auto;
+        max-height: 20;
+    }
+    """
+
+    BINDINGS = [
+        Binding("r", "run_highlighted", "Run"),
+        Binding("d", "change_directory", "Directory"),
+        Binding("c", "clear_log", "Clear log"),
+        Binding("q", "quit", "Quit"),
+    ]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._entries = {}
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
+        with Horizontal(id="body"):
+            with Vertical(id="sidebar"):
+                yield Label("SCRIPTS", id="sidebar-header")
+                items = [ListItem(Label(script.name)) for script in SCRIPTS]
+                yield ListView(*items, id="script-list", initial_index=0)
+            with Vertical(id="main"):
+                yield Label("", id="script-title")
+                yield Label("", id="script-category")
+                yield Static("", id="script-description")
+                yield Static("", id="script-notes")
+        yield RichLog(id="log-panel", markup=False, highlight=False, wrap=True)
+        yield Footer()
+
+    def on_mount(self) -> None:
+        list_view = self.query_one("#script-list", ListView)
+        for item, script in zip(list_view.children, SCRIPTS):
+            self._entries[item] = script
+        self._refresh_directory()
+        self._show_script(SCRIPTS[0])
+        list_view.focus()
+        self.log_line(f"Daily Tasks v{__version__} - ready.")
+        self.log_markup("Select a script, press [bold]Enter[/] or [bold]R[/] to run, "
+                        "[bold]D[/] to change the working directory.")
+
+    def _refresh_directory(self) -> None:
+        self.sub_title = f"v{__version__} - {os.getcwd()}"
+
+    def _show_script(self, script: ScriptEntry) -> None:
+        self.query_one("#script-title", Label).update(script.name)
+        self.query_one("#script-category", Label).update(f"[{script.category}]")
+        self.query_one("#script-description", Static).update(script.description)
+        self.query_one("#script-notes", Static).update(f"Note: {script.notes}")
+
+    def _current_script(self):
+        list_view = self.query_one("#script-list", ListView)
+        if list_view.index is None:
+            return None
+        return SCRIPTS[list_view.index]
+
+    def log_line(self, line: str) -> None:
+        self.query_one("#log-panel", RichLog).write(line)
+
+    def log_markup(self, markup: str) -> None:
+        self.query_one("#log-panel", RichLog).write(Text.from_markup(markup))
+
+    @on(ListView.Highlighted)
+    def script_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.item is not None and event.item in self._entries:
+            self._show_script(self._entries[event.item])
+
+    @on(ListView.Selected)
+    def script_selected(self, event: ListView.Selected) -> None:
+        if event.item is not None and event.item in self._entries:
+            self._run_script(self._entries[event.item])
+
+    def action_run_highlighted(self) -> None:
+        script = self._current_script()
+        if script is not None:
+            self._run_script(script)
+
+    def action_clear_log(self) -> None:
+        self.query_one("#log-panel", RichLog).clear()
+
+    def action_change_directory(self) -> None:
+        self.push_screen(InputModal("Working directory:", initial=os.getcwd()),
+                         callback=self._directory_chosen)
+
+    def _directory_chosen(self, choice) -> None:
+        if not choice:
+            return
+        path = os.path.expandvars(os.path.expanduser(choice.strip().strip('"')))
+        if os.path.isdir(path):
+            os.chdir(path)
+            self._refresh_directory()
+            self.log_line(f"Working directory changed to: {os.getcwd()}")
+            self.notify(f"Working directory: {os.getcwd()}")
+        else:
+            self.log_line(f"Not a directory: {path}")
+            self.notify(f"Not a directory: {path}", severity="error")
+
+    def _push_ask(self, prompt: str, options: list, on_result) -> None:
+        self.push_screen(SelectModal(prompt, options), callback=on_result)
+
+    def _ask_sync(self, prompt: str, options: list):
+        holder = {}
+        done = threading.Event()
+
+        def on_result(choice):
+            holder["choice"] = choice
+            done.set()
+
+        self.app.call_from_thread(self._push_ask, prompt, options, on_result)
+        done.wait()
+        return holder.get("choice")
+
+    @work(thread=True, exclusive=True, group="script")
+    def _run_script(self, script: ScriptEntry) -> None:
+        def sink(line: str) -> None:
+            self.app.call_from_thread(self.log_line, str(line))
+
+        def ask(prompt: str, options: list):
+            return self._ask_sync(prompt, options)
+
+        self.app.call_from_thread(self.log_line, "")
+        self.app.call_from_thread(self.log_markup, f"[bold]{'=' * 46}[/]")
+        self.app.call_from_thread(self.log_markup, f"[bold]Running: {script.name}[/]")
+        self.app.call_from_thread(self.log_markup, f"[bold]Directory: {os.getcwd()}[/]")
+        self.app.call_from_thread(self.log_markup, f"[bold]{'=' * 46}[/]")
+
+        started = time.monotonic()
+        try:
+            script.func(log=sink, ask=ask)
+        except Exception as e:
+            self.app.call_from_thread(self.log_line, f"Error: {e}")
+            self.app.call_from_thread(
+                self.notify, f"{script.name} failed: {e}", severity="error")
+        else:
+            elapsed = time.monotonic() - started
+            self.app.call_from_thread(
+                self.log_line, f"Done in {elapsed:.1f}s.")
+            self.app.call_from_thread(
+                self.notify, f"{script.name} finished",
+                severity="information")
 
 
 def main():
-    print("\n" + "="*50)
-    print("   AUTOMATION SCRIPTS - Standalone Edition")
-    print("="*50)
-    
-    while True:
-        script_map = display_menu()
-
-        choice = input("\nEnter choice: ").strip().lower()
-
-        if choice == 'q':
-            print("\nGoodbye!")
-            break
-        elif choice == 'c':
-            change_directory()
-            continue
-
-        try:
-            choice_num = int(choice)
-            if choice_num in script_map:
-                name, func = script_map[choice_num]
-                print(f"\n{'='*50}")
-                print(f"Running: {name}")
-                print(f"Directory: {os.getcwd()}")
-                print('='*50 + "\n")
-                try:
-                    func()
-                except Exception as e:
-                    print(f"\nError: {e}")
-                input("\nPress Enter to continue...")
-            else:
-                print("Invalid choice.")
-        except ValueError:
-            print("Invalid input.")
+    app = AutomationApp()
+    app.run()
 
 
 # =============================================================================
@@ -480,31 +746,29 @@ def main():
 def build_exe():
     """Compile this script into a standalone executable."""
     import subprocess
-    
-    # Check/install PyInstaller
+
     try:
-        import PyInstaller
+        import PyInstaller  # noqa: F401
     except ImportError:
         print("Installing PyInstaller...")
         subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"])
-    
+
     script_path = Path(__file__).resolve()
     base_dir = script_path.parent
-    
-    print("="*50)
-    print("Building Automation Scripts Executable")
-    print("="*50)
-    
+
+    print("=" * 50)
+    print("Building Daily Tasks Executable")
+    print("=" * 50)
+
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onefile",
-        "--name", "automation_scripts",
+        "--name", APP_NAME,
         "--console",
         "--clean",
         "--hidden-import", "PIL",
         "--hidden-import", "PIL.Image",
         "--hidden-import", "PIL.ImageOps",
-        "--hidden-import", "PIL.ExifTags",
         "--hidden-import", "reportlab",
         "--hidden-import", "reportlab.pdfgen",
         "--hidden-import", "reportlab.pdfgen.canvas",
@@ -513,25 +777,27 @@ def build_exe():
         "--hidden-import", "docx.document",
         "--collect-submodules", "reportlab",
         "--collect-submodules", "docx",
+        "--collect-all", "textual",
+        "--collect-all", "rich",
         str(script_path)
     ]
-    
+
     if sys.platform == "win32":
         cmd.extend([
             "--hidden-import", "win32com",
             "--hidden-import", "win32com.client",
             "--hidden-import", "pythoncom",
         ])
-    
+
     print("\nRunning PyInstaller...\n")
     result = subprocess.run(cmd, cwd=base_dir)
-    
+
     if result.returncode == 0:
-        exe_name = "automation_scripts.exe" if sys.platform == "win32" else "automation_scripts"
+        exe_name = f"{APP_NAME}.exe" if sys.platform == "win32" else APP_NAME
         exe_path = base_dir / "dist" / exe_name
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("BUILD SUCCESSFUL!")
-        print("="*50)
+        print("=" * 50)
         print(f"\nExecutable: {exe_path}")
         if exe_path.exists():
             print(f"Size: {exe_path.stat().st_size / 1024 / 1024:.1f} MB")
