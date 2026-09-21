@@ -31,7 +31,7 @@ except ImportError:
     sys.exit(1)
 
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 APP_NAME = "daily-tasks"
 
@@ -276,30 +276,78 @@ def image_format_converter_main(log=print, ask=None):
     from PIL import Image
 
     folder_path = os.getcwd()
-    supported = ('.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.webp')
+    supported = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff', '.webp')
+    target_formats = ['PNG', 'JPG', 'BMP', 'GIF', 'TIFF', 'WEBP']
+    exts_by_format = {'PNG': ('.png',), 'JPG': ('.jpg', '.jpeg'), 'BMP': ('.bmp',),
+                      'GIF': ('.gif',), 'TIFF': ('.tif', '.tiff'), 'WEBP': ('.webp',)}
+
+    images = sorted(f for f in os.listdir(folder_path)
+                    if f.lower().endswith(supported))
+    if not images:
+        log("No supported images found in the working directory.")
+        return
+
+    choice = None
+    if ask:
+        choice = ask("Select target format", target_formats)
+    else:
+        print("Select target format:")
+        for i, fmt in enumerate(target_formats, 1):
+            print(f"  {i}. {fmt}")
+        raw = input(f"Choice [1-{len(target_formats)}]: ").strip()
+        if raw.isdigit() and 1 <= int(raw) <= len(target_formats):
+            choice = target_formats[int(raw) - 1]
+    if not choice:
+        log("Cancelled.")
+        return
+
+    save_format = 'JPEG' if choice == 'JPG' else choice
+    target_ext = exts_by_format[choice][0]
+    log(f"Converting {len(images)} image(s) to {choice} (originals are kept)\n")
 
     converted = 0
-    for filename in os.listdir(folder_path):
-        if filename.lower().endswith(supported):
-            file_path = os.path.join(folder_path, filename)
-            new_filename = os.path.splitext(filename)[0] + '.png'
-            new_filepath = os.path.join(folder_path, new_filename)
+    skipped = 0
+    failed = 0
+    for filename in images:
+        if filename.lower().endswith(exts_by_format[choice]):
+            skipped += 1
+            continue
+        file_path = os.path.join(folder_path, filename)
+        new_filename = os.path.splitext(filename)[0] + target_ext
+        new_filepath = os.path.join(folder_path, new_filename)
 
-            try:
-                with Image.open(file_path) as img:
+        try:
+            with Image.open(file_path) as img:
+                img.load()
+                if choice == 'JPG':
                     if img.mode in ('RGBA', 'LA', 'P'):
                         img = img.convert('RGBA')
-                    else:
+                        background = Image.new('RGB', img.size, (255, 255, 255))
+                        background.paste(img, mask=img.split()[-1])
+                        img = background
+                    elif img.mode != 'RGB':
                         img = img.convert('RGB')
-                    img.save(new_filepath, "PNG")
+                elif choice == 'GIF':
+                    if img.mode not in ('P', 'L', 'RGB'):
+                        img = img.convert('P')
+                else:
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        img = img.convert('RGBA')
+                    elif img.mode != 'RGB':
+                        img = img.convert('RGB')
+                img.save(new_filepath, save_format)
 
-                os.remove(file_path)
-                log(f"Converted: {filename} -> {new_filename}")
-                converted += 1
-            except Exception as e:
-                log(f"Failed: {filename}: {e}")
+            log(f"Converted: {filename} -> {new_filename}")
+            converted += 1
+        except Exception as e:
+            log(f"Failed: {filename}: {e}")
+            failed += 1
 
-    log(f"\nConverted {converted} images to PNG")
+    log(f"\nConverted {converted} image(s) to {choice}")
+    if skipped:
+        log(f"Skipped {skipped} already in target format")
+    if failed:
+        log(f"Failed: {failed}")
 
 
 def word_find_replace_main(log=print, ask=None):
@@ -438,9 +486,11 @@ SCRIPTS = [
     ScriptEntry(
         name="Image Format Converter",
         category="Image",
-        description="Batch convert images in the working directory to PNG.",
-        notes="Supports JPG, JPEG, BMP, GIF, TIFF, WEBP. Original files are deleted "
-              "after successful conversion.",
+        description="Batch convert all images in the working directory to a chosen "
+                    "format: PNG, JPG, BMP, GIF, TIFF or WEBP.",
+        notes="Accepts PNG, JPG, JPEG, BMP, GIF, TIF, TIFF, WEBP input. Transparent "
+              "images are flattened onto white for JPG. Files already in the target "
+              "format are skipped; originals are kept.",
         func=image_format_converter_main,
     ),
     ScriptEntry(

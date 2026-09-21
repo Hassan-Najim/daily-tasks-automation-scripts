@@ -1,12 +1,14 @@
 # Image Format Converter
 
-Batch converts images to PNG format.
+Batch converts all images in a folder to a chosen format. Originals are kept.
 
 ## Features
 
-- Converts JPG, JPEG, BMP, GIF, TIFF, WEBP to PNG
-- Optionally deletes original files after conversion
-- Preserves transparency where possible
+- Pick a target format: PNG, JPG, BMP, GIF, TIFF or WEBP
+- Accepts PNG, JPG, JPEG, BMP, GIF, TIF, TIFF, WEBP input
+- Preserves transparency for formats that support alpha
+- Flattens transparent images onto a white background for JPG
+- Files already in the target format are skipped
 
 ## Usage
 
@@ -17,20 +19,21 @@ Batch converts images to PNG format.
 python script.py
 ```
 
-3. Original files are replaced with PNG versions
+3. Pick a target format from the numbered list
 
-## Configuration
-
-To keep original files, edit `main()`:
+## Programmatic Use
 
 ```python
-convert_to_png(folder_path, delete_originals=False)
+from script import convert_images
+
+convert_images(folder_path, target_format='PNG')
 ```
 
 ## Supported Input Formats
 
+- PNG (.png)
 - JPEG (.jpg, .jpeg)
 - BMP (.bmp)
 - GIF (.gif)
-- TIFF (.tiff)
+- TIFF (.tif, .tiff)
 - WebP (.webp)
