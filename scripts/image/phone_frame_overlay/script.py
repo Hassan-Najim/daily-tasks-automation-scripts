@@ -4,7 +4,17 @@ Composites screenshots onto a device frame mockup image.
 """
 
 import os
-from PIL import Image
+from PIL import Image, ImageDraw
+
+
+def create_placeholder_frame(frame_path: str) -> None:
+    """Create a simple placeholder phone frame (dark rounded outline)."""
+    width, height = 640, 1280
+    frame = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+    draw.rounded_rectangle([8, 8, width - 9, height - 9], radius=56,
+                           outline=(24, 24, 24, 255), width=16)
+    frame.save(frame_path)
 
 
 def overlay_frames(frame_path: str, screens_folder: str, output_folder: str) -> None:
@@ -61,20 +71,27 @@ def main():
     screens_folder = os.path.join(script_dir, 'screens')
     output_folder = os.path.join(script_dir, 'output')
 
-    if not os.path.exists(frame_path):
-        print(f"Error: frame.png not found in {script_dir}")
-        print("Please add a frame.png file (device mockup with transparency)")
-        return
-
     if not os.path.exists(screens_folder):
-        print(f"Error: 'screens' folder not found in {script_dir}")
-        print("Please create a 'screens' folder and add your screenshots")
-        return
+        os.makedirs(screens_folder)
+        print("Created: screens/ folder")
+
+    if not os.path.exists(frame_path):
+        create_placeholder_frame(frame_path)
+        print("Created: frame.png (placeholder phone outline)")
+        print("Tip: replace frame.png with any device mockup PNG (with transparency).")
 
     print(f"Frame: {frame_path}")
     print(f"Screens: {screens_folder}")
     print(f"Output: {output_folder}")
     print()
+
+    screens = [f for f in os.listdir(screens_folder)
+               if f.lower().endswith('.png') and not f.startswith('.')]
+    if not screens:
+        print("No screenshots yet.")
+        print(f"Drop PNG screenshots into: {screens_folder}")
+        print("Then run Phone Frame Overlay again.")
+        return
 
     overlay_frames(frame_path, screens_folder, output_folder)
     print("Done!")

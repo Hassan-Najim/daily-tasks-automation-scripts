@@ -1,63 +1,44 @@
 # Word Document Find & Replace
 
-Performs bulk find-and-replace operations in Word documents using JSON-formatted corrections.
+## WHAT
 
-## Features
+Applies bulk sentence-level replacements to a Word document from a corrections list.
 
-- Batch find-and-replace from JSON
-- Searches paragraphs and tables
-- Creates a new file (preserves original)
-- Supports loading corrections from file or inline
+## NEEDS
 
-## Usage
+- A .docx document (path set in `script.py`)
+- Corrections defined inline in `script.py` or loaded from a JSON file
+- Python packages: python-docx
 
-### 1. Prepare your corrections
+## HOW
 
-Create a JSON file (`corrections.json`):
+1. Edit `main()` in `script.py` - set `doc_path` to your document and
+   define your corrections inline (or load them from a JSON file):
 
-```json
-[
+```python
+corrections = [
     {
         "OgSentence": "Original text to find",
         "NewSentence": "Replacement text"
-    },
-    {
-        "OgSentence": "Another original",
-        "NewSentence": "Another replacement"
     }
 ]
+
+doc_path = "document.docx"  # Change this to your document path
 ```
 
-### 2. Edit the script
-
-Update `main()` with your document path and corrections source:
-
-```python
-corrections = load_corrections_from_json("corrections.json")
-doc_path = "my_document.docx"
-```
-
-### 3. Run
+2. Run the script:
 
 ```bash
 python script.py
 ```
 
-### 4. Output
+## OUTPUT
 
-Creates `my_document_updated.docx` with all replacements applied.
-
-## JSON Format
-
-```json
-{
-    "OgSentence": "The exact text to find",
-    "NewSentence": "The text to replace it with"
-}
-```
+- A copy of the document with corrections applied, saved as `*_updated.docx`
+- The original document is never modified
 
 ## Notes
 
+- Searches paragraphs and tables
 - Replacements are case-sensitive and exact-match
 - Only the first occurrence of each sentence is replaced
-- Original document is never modified

@@ -1,33 +1,28 @@
 # Word to PDF Batch Converter
 
-Converts all Word documents (.doc, .docx) in a folder to PDF format.
+## WHAT
 
-## Requirements
+Batch converts every Word document (.doc, .docx) in the folder to PDF.
 
-- **Windows only** - Uses COM automation
+## NEEDS
+
+- **Windows only** - uses COM automation
 - **Microsoft Word** must be installed
+- .doc/.docx files in this folder
+- Python packages: pywin32
 
-## Features
-
-- Batch converts all .doc and .docx files
-- Skips already-converted files (if PDF exists)
-- Preserves document properties and bookmarks
-- Retries failed conversions automatically
-- Ignores Word temp files (~$)
-
-## Usage
+## HOW
 
 1. Place your Word documents in this folder
-2. Run the script:
+2. Close any open Word documents
+3. Run the script:
 
 ```bash
 python script.py
 ```
 
-3. PDF files are created alongside the originals
+## OUTPUT
 
-## Notes
-
-- Close any open Word documents before running
-- Large documents may take longer to convert
-- Script will retry up to 3 times on failures
+- A PDF next to each document
+- Already-converted files are skipped; failed conversions retried up to 3 times
+- Word temp files (~$) are ignored

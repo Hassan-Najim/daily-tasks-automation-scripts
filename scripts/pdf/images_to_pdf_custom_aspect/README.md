@@ -1,16 +1,15 @@
-# Images to PDF Converter (Custom Aspect Ratio)
+# Images to PDF (Custom Aspect)
 
-Converts images to PDF preserving their native aspect ratio and DPI settings.
+## WHAT
 
-## Features
+Combines images into a single PDF where each page keeps the image's real size and aspect ratio.
 
-- Preserves original image aspect ratio (page size matches image)
-- Respects embedded DPI metadata
-- Auto-rotates based on EXIF orientation
-- Multiple sort options: natural, modification time, or EXIF date
-- Supports PNG, JPG, JPEG, BMP, GIF, TIF, TIFF formats
+## NEEDS
 
-## Usage
+- Images (PNG, JPG, JPEG, BMP, GIF, TIF, TIFF) in this folder
+- Python packages: Pillow, reportlab
+
+## HOW
 
 1. Place your images in this folder
 2. Run the script:
@@ -19,7 +18,11 @@ Converts images to PDF preserving their native aspect ratio and DPI settings.
 python script.py
 ```
 
-3. Find `output.pdf` in the same folder
+## OUTPUT
+
+- `output.pdf` with each page sized to match the image dimensions
+- Respects embedded DPI metadata and EXIF rotation
+- Ordered naturally (img2 before img10)
 
 ## Configuration
 
@@ -38,8 +41,3 @@ images_to_pdf(folder_path, output_pdf, order_by="exif")
 # Reverse any sort order
 images_to_pdf(folder_path, output_pdf, order_by="natural", reverse=True)
 ```
-
-## Output
-
-- Creates `output.pdf` with each page sized to match the image dimensions
-- Ideal for documents, screenshots, or scanned pages where exact sizing matters

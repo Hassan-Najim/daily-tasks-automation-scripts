@@ -1,26 +1,25 @@
-# Images to PDF Converter
+# Images to PDF
 
-Converts all images in a folder to a single PDF file.
+## WHAT
 
-## Features
+Combines every image in the folder into a single PDF file.
 
-- Supports PNG, JPG, JPEG, BMP, GIF formats
-- Maintains aspect ratio
-- Centers images on letter-sized pages
-- Sorts images alphabetically
+## NEEDS
 
-## Usage
+- Images (PNG, JPG, JPEG, BMP, GIF) in this folder
+- Python packages: Pillow, reportlab
 
-1. Place your images in this folder (or modify the script path)
+## HOW
+
+1. Place your images in this folder
 2. Run the script:
 
 ```bash
 python script.py
 ```
 
-3. Find `output.pdf` in the same folder
+## OUTPUT
 
-## Output
-
-- Creates `output.pdf` with one image per page
+- `output.pdf` with one image per page
 - Images are centered and scaled to fit letter size (8.5" x 11")
+- Sorted alphabetically

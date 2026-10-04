@@ -1,42 +1,46 @@
 # Phone Frame Overlay
 
-Composites screenshots onto a device frame mockup for professional-looking app previews.
+## WHAT
 
-## Features
+Places your screenshots inside a phone frame image for polished mockups.
 
-- Automatically centers screenshots in the frame
-- Preserves transparency
-- Batch processes all PNG files in the screens folder
-- Outputs high-quality PNG files
+## NEEDS
 
-## Setup
+- PNG screenshots in a `screens/` subfolder
+- `frame.png` device mockup (with transparency) - both are created
+  automatically on first run
 
-1. Add a `frame.png` file to this folder (device mockup with transparent screen area)
-2. Create a `screens/` subfolder
-3. Place your screenshot PNGs in `screens/`
+## HOW
+
+1. Run the script once - it creates `screens/` and a placeholder `frame.png`:
+
+```bash
+python script.py
+```
+
+2. Drop your PNG screenshots into `screens/`
+3. Run it again
+
+## OUTPUT
+
+- `output/` folder with a framed copy of each screenshot
+
+## Tips
+
+- Replace the placeholder `frame.png` with any device mockup
+  (transparent area where the screen shows)
+- Screenshots should be sized to fit within the frame's screen area
 
 ## Folder Structure
 
 ```
 phone_frame_overlay/
 ├── script.py
-├── frame.png          <- Your device frame
-├── screens/           <- Your screenshots go here
+├── frame.png          <- Your device frame (auto-created as placeholder)
+├── screens/           <- Your screenshots go here (auto-created)
 │   ├── screen1.png
 │   └── screen2.png
 └── output/            <- Created automatically
     ├── screen1.png
     └── screen2.png
 ```
-
-## Usage
-
-```bash
-python script.py
-```
-
-## Tips
-
-- Frame should have a transparent area where the screen will show
-- Screenshots should be sized to fit within the frame's screen area
-- Use PNG format for best quality (preserves transparency)

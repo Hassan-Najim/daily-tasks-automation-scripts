@@ -1,16 +1,15 @@
 # Image Format Converter
 
-Batch converts all images in a folder to a chosen format. Originals are kept.
+## WHAT
 
-## Features
+Batch converts all images in the folder to a format you pick. Originals are kept.
 
-- Pick a target format: PNG, JPG, BMP, GIF, TIFF or WEBP
-- Accepts PNG, JPG, JPEG, BMP, GIF, TIF, TIFF, WEBP input
-- Preserves transparency for formats that support alpha
-- Flattens transparent images onto a white background for JPG
-- Files already in the target format are skipped
+## NEEDS
 
-## Usage
+- Images (PNG, JPG, JPEG, BMP, GIF, TIF, TIFF, WEBP) in this folder
+- Python packages: Pillow
+
+## HOW
 
 1. Place images in this folder
 2. Run the script:
@@ -19,7 +18,13 @@ Batch converts all images in a folder to a chosen format. Originals are kept.
 python script.py
 ```
 
-3. Pick a target format from the numbered list
+3. Pick a target format from the numbered list (PNG, JPG, BMP, GIF, TIFF, WEBP)
+
+## OUTPUT
+
+- A converted copy of each image in this folder
+- Originals are kept; files already in the target format are skipped
+- Transparency is preserved; transparent images are flattened onto white for JPG
 
 ## Programmatic Use
 
@@ -28,12 +33,3 @@ from script import convert_images
 
 convert_images(folder_path, target_format='PNG')
 ```
-
-## Supported Input Formats
-
-- PNG (.png)
-- JPEG (.jpg, .jpeg)
-- BMP (.bmp)
-- GIF (.gif)
-- TIFF (.tif, .tiff)
-- WebP (.webp)

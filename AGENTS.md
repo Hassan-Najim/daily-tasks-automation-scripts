@@ -40,6 +40,9 @@ or the installed `daily-tasks` command (shim in `%LOCALAPPDATA%\daily-tasks`, on
 - Embedded scripts in `main_bundled.py` accept `(log=print, ask=None)` sinks:
   `log(str)` for output, `ask(prompt, options) -> str|None` for interactive picks
   (TUI shows a modal; console falls back to numbered input)
+- ScriptEntry uses a unified detail format: `what` (one sentence), `needs`
+  (requirements list), `how` (numbered steps), `output` (what is created),
+  and `probe` (live readiness line for the detail pane)
 - The TUI runs scripts in thread workers via `@work(thread=True)` and talks to the
   UI with `app.call_from_thread`; blocking waits use `threading.Event`
 - `launcher.ps1` must stay PowerShell 5.1 compatible (no ternary/`??` operators)

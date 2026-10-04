@@ -68,16 +68,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 | [Document](scripts/document/word_find_replace) | Word Find & Replace | Bulk text replacement in Word docs |
 
 Each script operates on the TUI's working directory (change it with `D`).
+Selecting a script shows a unified detail view — **WHAT** it does, what it
+**NEEDS**, step-by-step **HOW** to use it, what it **OUTPUT**s — plus a live
+check of whether the current folder has matching files to work with.
 
 ## TUI keys
 
 | Key | Action |
 |-----|--------|
-| `↑` `↓` | Navigate scripts |
+| `↑` `↓` | Navigate scripts (themes preview live in the theme picker) |
 | `Enter` / `R` | Run selected script |
-| `D` | Change working directory |
+| `D` | Change working directory (remembered between launches) |
+| `O` | Open the working folder in Explorer |
+| `T` | Theme picker (scroll to preview, Enter to keep, Esc to cancel) |
+| `Ctrl+P` | Command palette |
 | `C` | Clear the log panel |
 | `Q` | Quit |
+
+Your theme and working directory are saved in
+`%LOCALAPPDATA%\daily-tasks\settings.json`.
 
 ## Requirements
 

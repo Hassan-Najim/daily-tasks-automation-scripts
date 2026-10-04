@@ -1,10 +1,35 @@
 # PDF to Markdown
 
+## WHAT
+
 Batch-converts text-based PDFs to Markdown using deterministic layout
 heuristics — no AI, no OCR.
 
-Every `.pdf` in the folder becomes a sibling `<name>.md`. Existing `.md`
-files are never overwritten.
+## NEEDS
+
+- Text-based PDFs in this folder (scanned pages are detected and skipped)
+- Python packages: pdfplumber (`pip install -r requirements.txt`)
+
+## HOW
+
+1. Place your PDFs in this folder
+2. Run the script:
+
+```bash
+python script.py
+```
+
+## OUTPUT
+
+- One sibling `<name>.md` per PDF; existing `.md` files are never overwritten
+- Detects headings, bold/italic/inline code, lists, tables, links and code
+  blocks; strips running headers/footers and page numbers
+- Scanned pages are reported and skipped (no OCR); images become
+  `<!-- image: page N, WxH -->` placeholders
+
+## Limitations
+
+- Multi-column layouts (research papers) are not split into columns yet
 
 ## What it detects
 
@@ -16,19 +41,6 @@ files are never overwritten.
 - Monospace runs rendered as fenced code blocks
 - Running headers/footers and page numbers (removed when repeated across pages)
 - Ligature repair (`ﬁ` → `fi`) and hyphenated line-break joins
-
-## Limitations
-
-- **Scanned PDFs are not supported** — pages without a text layer are
-  detected, reported as a warning, and skipped (OCR is out of scope)
-- Multi-column layouts (research papers) are not split into columns yet
-- Images are not extracted; they become `<!-- image: page N, WxH -->` placeholders
-
-## Requirements
-
-```
-pip install -r requirements.txt
-```
 
 ## Self-test
 

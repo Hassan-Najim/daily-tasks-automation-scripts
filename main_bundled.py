@@ -32,9 +32,43 @@ except ImportError:
     sys.exit(1)
 
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 APP_NAME = "daily-tasks"
+
+DEFAULT_THEME = "textual-dark"
+
+
+def _settings_file() -> Path:
+    base = os.environ.get("LOCALAPPDATA")
+    if not base:
+        base = str(Path.home() / f".{APP_NAME}")
+    return Path(base) / APP_NAME / "settings.json"
+
+
+def load_settings() -> dict:
+    try:
+        with open(_settings_file(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_settings(settings: dict) -> None:
+    try:
+        path = _settings_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2)
+    except OSError:
+        pass
+
+
+def update_setting(key: str, value) -> None:
+    settings = load_settings()
+    settings[key] = value
+    save_settings(settings)
 
 
 # =============================================================================
@@ -225,50 +259,61 @@ def word_to_pdf_main(log=print, ask=None):
 
 
 def phone_frame_overlay_main(log=print, ask=None):
-    from PIL import Image
+    from PIL import Image, ImageDraw
 
     folder = os.getcwd()
     frame_path = os.path.join(folder, 'frame.png')
     screens_folder = os.path.join(folder, 'screens')
     output_folder = os.path.join(folder, 'output')
 
-    if not os.path.exists(frame_path):
-        log(f"Error: frame.png not found in {folder}")
-        log("Please add a frame.png file (device mockup with transparency)")
-        return
-
     if not os.path.exists(screens_folder):
-        log(f"Error: 'screens' folder not found in {folder}")
-        log("Please create a 'screens' folder and add your screenshots")
-        return
+        os.makedirs(screens_folder)
+        log("Created: screens/ folder")
+
+    if not os.path.exists(frame_path):
+        width, height = 640, 1280
+        frame = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(frame)
+        draw.rounded_rectangle([8, 8, width - 9, height - 9], radius=56,
+                               outline=(24, 24, 24, 255), width=16)
+        frame.save(frame_path)
+        log("Created: frame.png (placeholder phone outline)")
+        log("Tip: replace frame.png with any device mockup PNG (with transparency).")
 
     os.makedirs(output_folder, exist_ok=True)
+
+    screens = [f for f in os.listdir(screens_folder)
+               if f.lower().endswith('.png') and not f.startswith('.')]
+    if not screens:
+        log("No screenshots yet.")
+        log(f"Drop PNG screenshots into: {screens_folder}")
+        log("Then run Phone Frame Overlay again.")
+        return
 
     frame = Image.open(frame_path).convert('RGBA')
     frame_width, frame_height = frame.size
 
     processed = 0
-    for filename in os.listdir(screens_folder):
-        if filename.lower().endswith('.png') and not filename.startswith('.'):
-            screen_path = os.path.join(screens_folder, filename)
+    for filename in screens:
+        screen_path = os.path.join(screens_folder, filename)
 
-            try:
-                screen = Image.open(screen_path).convert('RGBA')
-            except Exception as e:
-                log(f"Skipping {filename}: {e}")
-                continue
+        try:
+            screen = Image.open(screen_path).convert('RGBA')
+        except Exception as e:
+            log(f"Skipping {filename}: {e}")
+            continue
 
-            canvas = Image.new('RGBA', (frame_width, frame_height), (0, 0, 0, 0))
-            screen_x = (frame_width - screen.width) // 2
-            screen_y = (frame_height - screen.height) // 2
-            canvas.paste(screen, (screen_x, screen_y), screen)
+        canvas = Image.new('RGBA', (frame_width, frame_height), (0, 0, 0, 0))
+        screen_x = (frame_width - screen.width) // 2
+        screen_y = (frame_height - screen.height) // 2
+        canvas.paste(screen, (screen_x, screen_y), screen)
 
-            final_image = Image.alpha_composite(canvas, frame)
+        final_image = Image.alpha_composite(canvas, frame)
 
-            output_path = os.path.join(output_folder, filename)
-            final_image.save(output_path, format='PNG')
-            log(f"Created: {filename}")
-            processed += 1
+        output_path = os.path.join(output_folder, filename)
+        final_image.save(output_path, format='PNG')
+        log(f"Created: {filename}")
+        processed += 1
 
     log(f"\nProcessed {processed} images -> output/")
 
@@ -993,13 +1038,94 @@ def pdf_to_md_main(log=print, ask=None):
 # =============================================================================
 # SCRIPT REGISTRY
 # =============================================================================
+# Every entry uses the same four sections:
+#   what   -> one sentence: what the tool does functionally
+#   needs  -> files / software / OS requirements
+#   how    -> numbered usage steps
+#   output -> what gets created and where
+# `probe` returns a live status line for the current working directory.
+
+IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.gif')
+IMAGE_EXTS_FULL = IMAGE_EXTS + ('.tif', '.tiff', '.webp')
+
+
+def _count_files(extensions, folder=None):
+    folder = folder or os.getcwd()
+    try:
+        return sum(1 for f in os.listdir(folder)
+                   if f.lower().endswith(extensions) and not f.startswith('~$'))
+    except OSError:
+        return 0
+
+
+def _plural(count, word):
+    return f"{count} {word}" + ("" if count == 1 else "s")
+
+
+def _probe_images():
+    count = _count_files(IMAGE_EXTS_FULL)
+    if count:
+        return f"Ready: {_plural(count, 'supported image')} in this folder."
+    return "Nothing to do: no supported images in this folder."
+
+
+def _probe_plain_images():
+    count = _count_files(IMAGE_EXTS)
+    if count:
+        return f"Ready: {_plural(count, 'image')} in this folder."
+    return "Nothing to do: no images in this folder."
+
+
+def _probe_word_docs():
+    count = _count_files(('.doc', '.docx'))
+    if count:
+        return f"Ready: {_plural(count, 'Word document')} in this folder."
+    return "Nothing to do: no .doc/.docx files in this folder."
+
+
+def _probe_pdfs():
+    count = _count_files(('.pdf',))
+    if count:
+        return f"Ready: {_plural(count, 'PDF')} in this folder."
+    return "Nothing to do: no PDFs in this folder."
+
+
+def _probe_phone_frame():
+    folder = os.getcwd()
+    frame_ok = os.path.isfile(os.path.join(folder, 'frame.png'))
+    screens = os.path.join(folder, 'screens')
+    if os.path.isdir(screens):
+        count = sum(1 for f in os.listdir(screens)
+                    if f.lower().endswith('.png') and not f.startswith('.'))
+    else:
+        count = 0
+    frame_state = "frame.png found" if frame_ok else "frame.png will be created"
+    if count:
+        return f"Ready: {_plural(count, 'screenshot')} in screens/, {frame_state}."
+    return "Nothing to do yet: put PNG screenshots in screens/ " \
+           f"({frame_state})."
+
+
+def _probe_find_replace():
+    folder = os.getcwd()
+    has_json = os.path.isfile(os.path.join(folder, 'corrections.json'))
+    count = _count_files(('.docx',))
+    docs = f"{_plural(count, '.docx file')} found" if count else "no .docx files"
+    json_state = "corrections.json found" if has_json else "corrections.json missing"
+    if has_json and count:
+        return f"Ready: {json_state}, {docs}."
+    return f"Not ready: {json_state}, {docs}."
+
 
 @dataclass
 class ScriptEntry:
     name: str
     category: str
-    description: str
-    notes: str
+    what: str
+    needs: list
+    how: list
+    output: str
+    probe: object
     func: object
 
 
@@ -1007,66 +1133,98 @@ SCRIPTS = [
     ScriptEntry(
         name="Images to PDF",
         category="PDF",
-        description="Combine every image in the working directory into a single "
-                    "output.pdf, centered on US Letter pages.",
-        notes="Supports PNG, JPG, JPEG, BMP, GIF. Landscape images fill page width, "
-              "portrait images fill page height.",
+        what="Combine every image in the working folder into a single PDF.",
+        needs=["Images (PNG, JPG, BMP, GIF) in the working folder"],
+        how=["Put your images in the working folder (D to change it)",
+             "Select this script and press Enter or R"],
+        output="output.pdf - one US Letter page per image, centered",
+        probe=_probe_plain_images,
         func=images_to_pdf_main,
     ),
     ScriptEntry(
         name="Images to PDF (Custom Aspect)",
         category="PDF",
-        description="Combine images into a single output.pdf where each page keeps "
-                    "the image's native size and aspect ratio (DPI-aware).",
-        notes="Supports PNG, JPG, JPEG, BMP, GIF, TIFF. Handles EXIF rotation and "
-              "natural filename ordering (img2 before img10).",
+        what="Combine images into one PDF where each page keeps the "
+             "image's real size and aspect ratio.",
+        needs=["Images (PNG, JPG, BMP, GIF, TIFF) in the working folder"],
+        how=["Put your images in the working folder (D to change it)",
+             "Select this script and press Enter or R"],
+        output="output.pdf - pages sized to each image (DPI-aware), "
+               "ordered naturally (img2 before img10)",
+        probe=_probe_plain_images,
         func=images_to_pdf_custom_main,
     ),
     ScriptEntry(
         name="Word to PDF",
         category="PDF",
-        description="Batch convert every .doc/.docx file in the working directory "
-                    "to PDF via Microsoft Word automation.",
-        notes="Windows + Microsoft Word required. Existing PDFs are skipped; failed "
-              "conversions are retried up to 3 times.",
+        what="Batch convert every Word document in the working folder to PDF.",
+        needs=["Windows with Microsoft Word installed",
+               ".doc/.docx files in the working folder"],
+        how=["Put your Word documents in the working folder",
+             "Select this script and press Enter or R"],
+        output="A PDF next to each document; already-converted files are "
+               "skipped, failed ones retried up to 3 times",
+        probe=_probe_word_docs,
         func=word_to_pdf_main,
     ),
     ScriptEntry(
         name="PDF to Markdown",
         category="PDF",
-        description="Convert every PDF in the working directory to Markdown "
-                    "using deterministic layout analysis (fonts, sizes, "
-                    "positions) - no AI, no OCR.",
-        notes="Handles headings, bold/italic, lists, tables, links and code "
-              "blocks; strips running headers/footers. Scanned pages are "
-              "detected and skipped. Existing .md files are never overwritten.",
+        what="Convert every PDF in the working folder to a Markdown file.",
+        needs=["Text-based PDFs in the working folder "
+               "(scanned pages are detected and skipped)"],
+        how=["Put your PDFs in the working folder",
+             "Select this script and press Enter or R"],
+        output="One .md file per PDF (headings, lists, tables, links); "
+               "existing .md files are never overwritten",
+        probe=_probe_pdfs,
         func=pdf_to_md_main,
     ),
     ScriptEntry(
         name="Phone Frame Overlay",
         category="Image",
-        description="Composite device frame mockups over your screenshots.",
-        notes="Needs frame.png (transparent device frame) and a screens/ folder with "
-              "PNG screenshots. Results go to output/.",
+        what="Place your screenshots inside a phone frame image for "
+             "polished mockups.",
+        needs=["PNG screenshots inside a screens/ folder",
+               "frame.png device mockup (both are created automatically "
+               "on first run)"],
+        how=["Select this script and press Enter or R once - it creates "
+             "screens/ and a placeholder frame.png",
+             "Drop your PNG screenshots into screens/",
+             "Run it again"],
+        output="output/ folder with a framed copy of each screenshot",
+        probe=_probe_phone_frame,
         func=phone_frame_overlay_main,
     ),
     ScriptEntry(
         name="Image Format Converter",
         category="Image",
-        description="Batch convert all images in the working directory to a chosen "
-                    "format: PNG, JPG, BMP, GIF, TIFF or WEBP.",
-        notes="Accepts PNG, JPG, JPEG, BMP, GIF, TIF, TIFF, WEBP input. Transparent "
-              "images are flattened onto white for JPG. Files already in the target "
-              "format are skipped; originals are kept.",
+        what="Batch convert all images in the working folder to a format "
+             "you pick: PNG, JPG, BMP, GIF, TIFF or WEBP.",
+        needs=["Images (PNG, JPG, BMP, GIF, TIFF, WEBP) in the working "
+               "folder"],
+        how=["Put your images in the working folder",
+             "Press Enter or R and pick the target format from the list"],
+        output="A converted copy of each image in the working folder; "
+               "originals are kept, files already in the target format "
+               "are skipped",
+        probe=_probe_images,
         func=image_format_converter_main,
     ),
     ScriptEntry(
         name="Word Find & Replace",
         category="Document",
-        description="Apply bulk sentence-level replacements to a Word document from "
-                    "a corrections.json list.",
-        notes="Needs corrections.json and at least one .docx in the working "
-              "directory. Result saved as *_updated.docx.",
+        what="Apply bulk sentence-level replacements to a Word document "
+             "from a corrections list.",
+        needs=["corrections.json in the working folder, formatted as "
+               '[{"OgSentence": "original", "NewSentence": "replacement"}]',
+               "At least one .docx in the working folder"],
+        how=["Create corrections.json with your find/replace pairs",
+             "Put the .docx in the working folder",
+             "Select this script and press Enter or R"],
+        output="A copy of the document with corrections applied, saved as "
+               "*_updated.docx",
+        probe=_probe_find_replace,
         func=word_find_replace_main,
     ),
 ]
@@ -1133,6 +1291,60 @@ class SelectModal(ModalScreen):
             self.dismiss(None)
 
 
+class ThemePicker(ModalScreen):
+    """Theme chooser with live preview: themes apply while you scroll.
+
+    Dismisses with the chosen theme name, or None if cancelled
+    (the app then reverts to the theme that was active before).
+    """
+
+    DEFAULT_THEME_NAME = DEFAULT_THEME
+
+    def __init__(self, current: str) -> None:
+        super().__init__()
+        self._current = current
+        self._preview = current
+        self._names = []
+        self._by_item = {}
+
+    def compose(self) -> ComposeResult:
+        themes = sorted(self.app.available_themes.values(),
+                        key=lambda theme: theme.name)
+        self._names = [theme.name for theme in themes]
+        items = []
+        for name in self._names:
+            label = f"{name} (default)" if name == self.DEFAULT_THEME_NAME else name
+            items.append(ListItem(Label(label)))
+        yield Vertical(
+            Label("Theme - scroll to preview, Enter to keep, Esc to cancel",
+                  id="theme-picker-prompt"),
+            ListView(*items, id="theme-picker-list"),
+        )
+
+    def on_mount(self) -> None:
+        list_view = self.query_one("#theme-picker-list", ListView)
+        for item, name in zip(list_view.children, self._names):
+            self._by_item[item] = name
+        list_view.focus()
+        if self._current in self._names:
+            list_view.index = self._names.index(self._current)
+
+    @on(ListView.Highlighted)
+    def preview(self, event: ListView.Highlighted) -> None:
+        name = self._by_item.get(event.item)
+        if name and name != self._preview:
+            self._preview = name
+            self.app.theme = name
+
+    @on(ListView.Selected)
+    def chosen(self, event: ListView.Selected) -> None:
+        self.dismiss(self._by_item.get(event.item))
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+
+
 # =============================================================================
 # TUI APPLICATION
 # =============================================================================
@@ -1173,14 +1385,9 @@ class AutomationApp(App):
     #script-category {
         color: $accent;
     }
-    #script-description {
+    #script-detail {
         margin-top: 1;
         width: 1fr;
-    }
-    #script-notes {
-        margin-top: 1;
-        width: 1fr;
-        color: $text-muted;
     }
     #log-panel {
         height: 16;
@@ -1196,7 +1403,7 @@ class AutomationApp(App):
     #input-modal-prompt {
         width: 1fr;
     }
-    SelectModal Vertical {
+    SelectModal Vertical, ThemePicker Vertical {
         height: auto;
         max-height: 60%;
         margin: 2 8;
@@ -1204,10 +1411,10 @@ class AutomationApp(App):
         background: $surface;
         border: round $accent;
     }
-    #select-modal-prompt {
+    #select-modal-prompt, #theme-picker-prompt {
         padding: 0 1;
     }
-    #select-modal-list {
+    #select-modal-list, #theme-picker-list {
         height: auto;
         max-height: 20;
     }
@@ -1216,6 +1423,8 @@ class AutomationApp(App):
     BINDINGS = [
         Binding("r", "run_highlighted", "Run"),
         Binding("d", "change_directory", "Directory"),
+        Binding("o", "open_folder", "Open folder"),
+        Binding("t", "change_theme", "Theme"),
         Binding("c", "clear_log", "Clear log"),
         Binding("q", "quit", "Quit"),
     ]
@@ -1223,6 +1432,7 @@ class AutomationApp(App):
     def __init__(self) -> None:
         super().__init__()
         self._entries = {}
+        self._saved_theme = DEFAULT_THEME
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -1234,12 +1444,27 @@ class AutomationApp(App):
             with Vertical(id="main"):
                 yield Label("", id="script-title")
                 yield Label("", id="script-category")
-                yield Static("", id="script-description")
-                yield Static("", id="script-notes")
+                yield Static("", id="script-detail", markup=True)
         yield RichLog(id="log-panel", markup=False, highlight=False, wrap=True)
         yield Footer()
 
+    def get_system_commands(self, screen):
+        for command in super().get_system_commands(screen):
+            if command.title == "Screenshot":
+                continue
+            yield command
+
     def on_mount(self) -> None:
+        settings = load_settings()
+        theme = settings.get("theme")
+        if theme and theme in self.available_themes:
+            self.theme = theme
+        last_dir = settings.get("last_dir")
+        if last_dir and os.path.isdir(last_dir):
+            try:
+                os.chdir(last_dir)
+            except OSError:
+                pass
         list_view = self.query_one("#script-list", ListView)
         for item, script in zip(list_view.children, SCRIPTS):
             self._entries[item] = script
@@ -1248,7 +1473,8 @@ class AutomationApp(App):
         list_view.focus()
         self.log_line(f"Daily Tasks v{__version__} - ready.")
         self.log_markup("Select a script, press [bold]Enter[/] or [bold]R[/] to run, "
-                        "[bold]D[/] to change the working directory.")
+                        "[bold]D[/] to change the working directory, "
+                        "[bold]T[/] for themes.")
 
     def _refresh_directory(self) -> None:
         self.sub_title = f"v{__version__} - {os.getcwd()}"
@@ -1256,8 +1482,30 @@ class AutomationApp(App):
     def _show_script(self, script: ScriptEntry) -> None:
         self.query_one("#script-title", Label).update(script.name)
         self.query_one("#script-category", Label).update(f"[{script.category}]")
-        self.query_one("#script-description", Static).update(script.description)
-        self.query_one("#script-notes", Static).update(f"Note: {script.notes}")
+        self.query_one("#script-detail", Static).update(self._detail_markup(script))
+
+    @staticmethod
+    def _detail_markup(script: ScriptEntry) -> str:
+        lines = ["[bold]WHAT[/]", f"  {script.what}", ""]
+        lines.append("[bold]NEEDS[/]")
+        lines.extend(f"  - {need}" for need in script.needs)
+        lines.append("")
+        lines.append("[bold]HOW[/]")
+        lines.extend(f"  {number}. {step}"
+                     for number, step in enumerate(script.how, 1))
+        lines.append("")
+        lines.append("[bold]OUTPUT[/]")
+        lines.append(f"  {script.output}")
+        lines.append("")
+        status = script.probe()
+        style = "green" if status.startswith("Ready") else "yellow"
+        lines.append(f"[{style}]{status}[/]")
+        return "\n".join(lines)
+
+    def _refresh_detail(self) -> None:
+        script = self._current_script()
+        if script is not None:
+            self._show_script(script)
 
     def _current_script(self):
         list_view = self.query_one("#script-list", ListView)
@@ -1300,11 +1548,34 @@ class AutomationApp(App):
         if os.path.isdir(path):
             os.chdir(path)
             self._refresh_directory()
+            self._refresh_detail()
+            update_setting("last_dir", os.getcwd())
             self.log_line(f"Working directory changed to: {os.getcwd()}")
             self.notify(f"Working directory: {os.getcwd()}")
         else:
             self.log_line(f"Not a directory: {path}")
             self.notify(f"Not a directory: {path}", severity="error")
+
+    def action_open_folder(self) -> None:
+        folder = os.getcwd()
+        if sys.platform != "win32":
+            self.log_line(f"Opening folders is only supported on Windows: {folder}")
+            return
+        try:
+            os.startfile(folder)  # noqa: S606
+        except OSError as error:
+            self.log_line(f"Could not open folder: {error}")
+
+    def action_change_theme(self) -> None:
+        self._saved_theme = self.theme
+        self.push_screen(ThemePicker(self.theme), callback=self._theme_chosen)
+
+    def _theme_chosen(self, choice) -> None:
+        if choice is None:
+            self.theme = self._saved_theme
+            return
+        update_setting("theme", choice)
+        self.log_line(f"Theme set to: {choice}")
 
     def _push_ask(self, prompt: str, options: list, on_result) -> None:
         self.push_screen(SelectModal(prompt, options), callback=on_result)
@@ -1349,6 +1620,7 @@ class AutomationApp(App):
             self.app.call_from_thread(
                 self.notify, f"{script.name} finished",
                 severity="information")
+        self.app.call_from_thread(self._refresh_detail)
 
 
 def main():
