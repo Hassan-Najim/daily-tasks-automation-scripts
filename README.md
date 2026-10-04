@@ -62,6 +62,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 | [PDF](scripts/pdf/images_to_pdf) | Images to PDF | Convert images to a single PDF |
 | [PDF](scripts/pdf/images_to_pdf_custom_aspect) | Images to PDF (Custom) | Convert with native aspect ratios |
 | [PDF](scripts/pdf/word_to_pdf) | Word to PDF | Batch convert Word docs to PDF |
+| [PDF](scripts/pdf/pdf_to_md) | PDF to Markdown | Convert text-based PDFs to Markdown (no AI/OCR) |
 | [Image](scripts/image/phone_frame_overlay) | Phone Frame Overlay | Add device frames to screenshots |
 | [Image](scripts/image/image_format_converter) | Image Converter | Convert images between formats (PNG, JPG, BMP, GIF, TIFF, WEBP) |
 | [Document](scripts/document/word_find_replace) | Word Find & Replace | Bulk text replacement in Word docs |

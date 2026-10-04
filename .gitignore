@@ -32,6 +32,7 @@ output/
 
 # Test/sample files
 *.test.*
+**/selftest_work/
 
 # PyInstaller
 build/

@@ -10,6 +10,9 @@ Pillow>=9.0.0
 # PDF generation
 reportlab>=3.6.0
 
+# PDF to Markdown (text extraction + layout analysis)
+pdfplumber>=0.11.0
+
 # Word document manipulation
 python-docx>=0.8.11
 
