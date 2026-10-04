@@ -32,7 +32,7 @@ except ImportError:
     sys.exit(1)
 
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 APP_NAME = "daily-tasks"
 
