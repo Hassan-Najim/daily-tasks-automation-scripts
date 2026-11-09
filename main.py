@@ -15,6 +15,7 @@ from pathlib import Path
 SCRIPTS = {
     "pdf": [
         ("Everything to PDF", "scripts/pdf/everything_to_pdf/script.py"),
+        ("PDF Merge & Split", "scripts/pdf/pdf_merge_split/script.py"),
         ("Images to PDF", "scripts/pdf/images_to_pdf/script.py"),
         ("Images to PDF (Custom Aspect)", "scripts/pdf/images_to_pdf_custom_aspect/script.py"),
         ("Word to PDF", "scripts/pdf/word_to_pdf/script.py"),

@@ -90,6 +90,7 @@ _SCRIPTS_DIR = "scripts"
 # Display name -> relative path under scripts/
 _SCRIPT_FILES = {
     "Everything to PDF": "pdf/everything_to_pdf/script.py",
+    "PDF Merge & Split": "pdf/pdf_merge_split/script.py",
     "Images to PDF": "pdf/images_to_pdf/script.py",
     "Images to PDF (Custom Aspect)": "pdf/images_to_pdf_custom_aspect/script.py",
     "Word to PDF": "pdf/word_to_pdf/script.py",
@@ -291,6 +292,21 @@ SCRIPTS = [
                "pages, existing PDFs are appended)",
         probe=_probe_everything,
         func=_SCRIPT_FUNCS["Everything to PDF"],
+    ),
+    ScriptEntry(
+        name="PDF Merge & Split",
+        category="PDF",
+        what="Merge every PDF in the working folder into one file, or "
+             "split one PDF into single pages.",
+        needs=["PDFs in the working folder (2+ to merge, 1+ to split)"],
+        how=["Put your PDFs in the working folder",
+             "Select this script, press Enter or R and pick Merge or Split",
+             "For Split, pick which PDF when there are several"],
+        output="merged.pdf with every PDF combined in name order, or a "
+               "split/ folder with one PDF per page (<name>_page_001.pdf, "
+               "..._page_002.pdf, ...)",
+        probe=_probe_merge_split,
+        func=_SCRIPT_FUNCS["PDF Merge & Split"],
     ),
     ScriptEntry(
         name="Images to PDF",
