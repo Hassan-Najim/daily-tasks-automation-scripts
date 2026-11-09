@@ -1,8 +1,9 @@
 # Daily Tasks — Automation Suite
 
-A Textual TUI bundling everyday-task automations: images to PDF, Word to PDF,
-phone-screenshot mockups, format conversion, and bulk find & replace — as a
-single portable Windows executable.
+A Textual TUI bundling everyday-task automations: combine anything into a
+PDF, merge/split PDFs, images to PDF, Word to PDF, PDF to Markdown,
+resizing, format conversion, phone-screenshot mockups, file organizing and
+batch renaming — as a single portable Windows executable.
 
 ## Run it now (zero install)
 
@@ -59,18 +60,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 
 | Category | Script | Description |
 |----------|--------|-------------|
-| [PDF](scripts/pdf/images_to_pdf) | Images to PDF | Convert images to a single PDF |
+| [PDF](scripts/pdf/everything_to_pdf) | Everything to PDF | Combine Word, Excel, PowerPoint, PDF and images into one PDF |
+| [PDF](scripts/pdf/pdf_merge_split) | PDF Merge & Split | Merge all PDFs into one, or split one into pages |
+| [PDF](scripts/pdf/images_to_pdf) | Images to PDF | Convert images to a single PDF (EXIF-aware) |
 | [PDF](scripts/pdf/images_to_pdf_custom_aspect) | Images to PDF (Custom) | Convert with native aspect ratios |
 | [PDF](scripts/pdf/word_to_pdf) | Word to PDF | Batch convert Word docs to PDF |
 | [PDF](scripts/pdf/pdf_to_md) | PDF to Markdown | Convert text-based PDFs to Markdown (no AI/OCR) |
+| [Image](scripts/image/image_format_converter) | Image Converter | Convert images between formats (incl. HEIC via pillow-heif) |
+| [Image](scripts/image/image_resizer) | Image Resizer | Batch resize or compress images to a target size |
 | [Image](scripts/image/phone_frame_overlay) | Phone Frame Overlay | Add device frames to screenshots |
-| [Image](scripts/image/image_format_converter) | Image Converter | Convert images between formats (PNG, JPG, BMP, GIF, TIFF, WEBP) |
-| [Document](scripts/document/word_find_replace) | Word Find & Replace | Bulk text replacement in Word docs |
+| [Files](scripts/files/file_organizer) | File Organizer | Sort loose files into subfolders by type or year-month |
+| [Files](scripts/files/batch_renamer) | Batch Renamer | Rename files with one rule: numbered, lowercase-dashes, or date-stamped |
 
 Each script operates on the TUI's working directory (change it with `D`).
 Selecting a script shows a unified detail view — **WHAT** it does, what it
 **NEEDS**, step-by-step **HOW** to use it, what it **OUTPUT**s — plus a live
 check of whether the current folder has matching files to work with.
+Press `F` to filter the script list.
 
 ## TUI keys
 
@@ -78,6 +84,7 @@ check of whether the current folder has matching files to work with.
 |-----|--------|
 | `↑` `↓` | Navigate scripts (themes preview live in the theme picker) |
 | `Enter` / `R` | Run selected script |
+| `F` | Filter the script list (Esc clears and returns to the list) |
 | `D` | Change working directory (remembered between launches) |
 | `O` | Open the working folder in Explorer |
 | `T` | Theme picker (scroll to preview, Enter to keep, Esc to cancel) |
@@ -91,7 +98,9 @@ Your theme and working directory are saved in
 ## Requirements
 
 - Windows 10/11 for the launcher/executable (no Python needed)
-- Microsoft Word installed for **Word to PDF** (uses COM automation)
+- Microsoft Word for **Word to PDF**; Microsoft Office (Word/Excel/
+  PowerPoint) for the matching file types in **Everything to PDF** —
+  both use COM automation and skip files whose app is missing
 
 ## Development
 
@@ -107,6 +116,11 @@ python main.py
 # Build the standalone executable locally
 python main_bundled.py --build
 ```
+
+The `scripts/` folders are the single source of truth: both `main.py` and
+the TUI load `scripts/<category>/<name>/script.py` at runtime (in the exe
+they ship as data files), and each script exposes
+`main(log=print, ask=None)` and operates on the current working directory.
 
 ### Releases
 
@@ -124,13 +138,14 @@ published in the same release, and all transport is HTTPS.
 
 ```
 daily-tasks-automation-scripts/
-├── main.py                   # Plain CLI menu (runs scripts/ standalone)
+├── main.py                   # Plain CLI menu (loads scripts/ dynamically)
 ├── main_bundled.py           # Textual TUI + PyInstaller build entry
+├── script_common.py          # Shared script helpers (HEIC, sorting, Office export)
 ├── launcher.ps1              # Zero-install launcher + command installer
 ├── requirements.txt          # All dependencies
 ├── .github/workflows/release.yml
-└── scripts/                  # Standalone per-script folders
+└── scripts/                  # Single source of truth, loaded by both entry points
     ├── pdf/                  #   script.py + README.md + requirements.txt
     ├── image/
-    └── document/
+    └── files/
 ```
