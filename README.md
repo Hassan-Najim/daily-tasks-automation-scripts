@@ -20,8 +20,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 ```
 
 The launcher downloads the latest release (SHA256-verified), caches it in
-`%LOCALAPPDATA%\daily-tasks`, and starts the TUI. Re-running the command
+`%LOCALAPPDATA%\daily-tasks\app`, and starts the TUI. Re-running the command
 auto-updates to the newest release. Offline? The cached copy is used.
+
+> **Installed before November 2026?** Run the one-liner above once to repair
+> the auto-update path: old installs cached the exe where it shadowed the
+> `daily-tasks` command's launcher, so updates were skipped. It also
+> re-registers the App Paths entry that makes `daily-tasks` work in Win+R
+> and Explorer's address bar.
 
 ## Install the `daily-tasks` command
 
@@ -38,7 +44,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 ```
 
 This drops a `daily-tasks` command into your user PATH (works in cmd,
-PowerShell, and Win+R). Open a **new** terminal and type:
+PowerShell, Win+R, and Explorer's address bar — an App Paths registry entry
+maps the name to the launcher). Open a **new** terminal and type:
 
 ```
 daily-tasks

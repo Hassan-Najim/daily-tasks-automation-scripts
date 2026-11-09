@@ -8,11 +8,17 @@
 # Force update:         daily-tasks -Update   (re-downloads even if up to date)
 #
 # Downloads the latest daily-tasks.exe from GitHub Releases (with SHA256
-# verification), caches it in %LOCALAPPDATA%\daily-tasks, and runs it.
+# verification), caches it in %LOCALAPPDATA%\daily-tasks\app, and runs it.
+# The exe is cached in an app\ subfolder on purpose: Windows resolves the
+# bare name "daily-tasks" by PATHEXT order (.exe before .cmd), so a
+# top-level cached exe would shadow the daily-tasks.cmd shim and run the
+# app directly, skipping this launcher and its update check entirely.
 # The update check uses the releases/latest page redirect (not the GitHub
 # API), so it is not affected by the API's 60-requests-per-hour limit.
 # Falls back to the cached copy when offline (with a clear reason).
 # The installed launcher copy refreshes itself from the repository.
+# An HKCU App Paths entry makes the bare name work in Win+R and the
+# Explorer address bar, which only resolve executables by bare name.
 # =============================================================================
 #Requires -Version 5.1
 [CmdletBinding()]
@@ -27,6 +33,7 @@ $RepoName    = "daily-tasks-automation-scripts"
 $ExeName     = "daily-tasks.exe"
 $CommandName = "daily-tasks"
 $InstallDir  = Join-Path $env:LOCALAPPDATA $CommandName
+$CacheDir    = Join-Path $InstallDir "app"
 $ApiBase     = "https://api.github.com/repos/$RepoOwner/$RepoName"
 $RawLauncher = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/main/launcher.ps1"
 $LatestPage  = "https://github.com/$RepoOwner/$RepoName/releases/latest"
@@ -104,12 +111,56 @@ function Get-CachedVersion {
     return $null
 }
 
+function Move-OldCache {
+    # Migrate installs from before the app\ cache folder: the exe used to be
+    # cached directly in $InstallDir, where daily-tasks.exe shadowed the
+    # daily-tasks.cmd shim (PATHEXT tries .exe before .cmd), so typing
+    # "daily-tasks" ran the app directly and this launcher never executed.
+    # Move the old exe out of the way so the shim wins again.
+    $oldExe = Join-Path $InstallDir $ExeName
+    if (-not (Test-Path $oldExe)) { return }
+    New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
+    $newExe = Join-Path $CacheDir $ExeName
+    try {
+        if (Test-Path $newExe) {
+            Remove-Item $oldExe -Force -ErrorAction Stop
+        } else {
+            Move-Item -Path $oldExe -Destination $newExe -ErrorAction Stop
+        }
+    } catch {
+        Write-Warning "Could not move the old $ExeName into the cache folder ($($_.Exception.Message))."
+        Write-Warning "Close $CommandName if it is running, then run this again."
+    }
+}
+
+function Register-AppPaths {
+    # Win+R and the Explorer address bar resolve a bare name to executables
+    # only (App Paths registry, then PATH for name.exe) - they never walk
+    # PATHEXT, so the daily-tasks.cmd shim is invisible there. This App
+    # Paths entry maps the name to the shim explicitly.
+    $shimPath = Join-Path $InstallDir "$CommandName.cmd"
+    if (-not (Test-Path $shimPath)) { return }
+    $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths\$ExeName"
+    try {
+        if (-not (Test-Path $key)) {
+            New-Item -Path $key -Force | Out-Null
+        }
+        $props = Get-ItemProperty -Path $key -ErrorAction SilentlyContinue
+        if ($props."(default)" -ne $shimPath) {
+            Set-ItemProperty -Path $key -Name "(default)" -Value $shimPath
+        }
+    } catch {
+        Write-Warning "Could not register the App Paths entry: $($_.Exception.Message)"
+    }
+}
+
 function Save-Release {
     param([string]$Tag)
 
     $downloadBase = "https://github.com/$RepoOwner/$RepoName/releases/download/$Tag"
 
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
 
     $tmpExe = Join-Path $env:TEMP "$CommandName-download.exe"
     Invoke-WebRequest -Uri "$downloadBase/$ExeName" -OutFile $tmpExe -UseBasicParsing
@@ -138,7 +189,7 @@ function Save-Release {
         }
     }
 
-    $destExe = Join-Path $InstallDir $ExeName
+    $destExe = Join-Path $CacheDir $ExeName
     if (Test-Path $destExe) {
         try {
             Remove-Item $destExe -Force -ErrorAction Stop
@@ -181,6 +232,8 @@ function Install-Command {
     $shimContent = "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"$localLauncher`" %*"
     Set-Content -Path (Join-Path $InstallDir "$CommandName.cmd") -Value $shimContent -Encoding ASCII
 
+    Register-AppPaths
+
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if (-not $userPath) { $userPath = "" }
     $alreadyPresent = ($userPath -split ";") | ForEach-Object { $_.Trim() } | Where-Object { $_ -eq $InstallDir }
@@ -195,6 +248,8 @@ function Install-Command {
 }
 
 function Uninstall-Command {
+    Remove-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths\$ExeName" -Recurse -ErrorAction SilentlyContinue
+
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if ($userPath) {
         $kept = ($userPath -split ";") | ForEach-Object { $_.Trim() } | Where-Object { $_ -and $_ -ne $InstallDir }
@@ -218,7 +273,18 @@ if ($Uninstall) {
 # Keep the installed launcher copy current.
 Update-LocalLauncher
 
-$exePath = Join-Path $InstallDir $ExeName
+# Migrate pre-app\ installs so the shim is not shadowed anymore.
+Move-OldCache
+
+# Keep the App Paths entry (Win+R / Explorer address bar) in place.
+Register-AppPaths
+
+$exePath = Join-Path $CacheDir $ExeName
+if (-not (Test-Path $exePath)) {
+    # Migration was blocked (e.g. the old exe is running); use it this once.
+    $oldExe = Join-Path $InstallDir $ExeName
+    if (Test-Path $oldExe) { $exePath = $oldExe }
+}
 $cachedVersion = Get-CachedVersion
 
 $latestTag = Get-LatestTag

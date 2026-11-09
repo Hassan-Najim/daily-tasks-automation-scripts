@@ -34,7 +34,10 @@ python main_bundled.py --build   # PyInstaller exe -> dist/daily-tasks.exe
 ```
 
 End user: `irm https://raw.githubusercontent.com/Hassan-Najim/daily-tasks-automation-scripts/main/launcher.ps1 | iex`
-or the installed `daily-tasks` command (shim in `%LOCALAPPDATA%\daily-tasks`, on user PATH).
+or the installed `daily-tasks` command (shim in `%LOCALAPPDATA%\daily-tasks`, on
+user PATH; the exe is cached in the `app\` subfolder so it cannot shadow the
+shim — PATHEXT resolves `.exe` before `.cmd`; an HKCU App Paths entry maps the
+bare name to the shim for Win+R and the Explorer address bar).
 
 ## Key Patterns
 
