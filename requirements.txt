@@ -4,17 +4,20 @@
 # TUI (main_bundled.py / standalone executable)
 textual>=0.40.0
 
+# Shared helpers (script_common.py: HEIC support, natural sort, Office export)
+pillow-heif>=0.13.0
+
 # Image processing
 Pillow>=9.0.0
 
 # PDF generation
 reportlab>=3.6.0
 
+# PDF merge/split + everything_to_pdf
+pypdf>=4.0.0
+
 # PDF to Markdown (text extraction + layout analysis)
 pdfplumber>=0.11.0
 
-# Word document manipulation
-python-docx>=0.8.11
-
-# Word to PDF (Windows only)
+# Office to PDF (Windows only)
 pywin32>=305; sys_platform == "win32"
