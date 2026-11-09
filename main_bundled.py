@@ -95,6 +95,7 @@ _SCRIPT_FILES = {
     "PDF to Markdown": "pdf/pdf_to_md/script.py",
     "Image Format Converter": "image/image_format_converter/script.py",
     "Phone Frame Overlay": "image/phone_frame_overlay/script.py",
+    "File Organizer": "files/file_organizer/script.py",
 }
 
 
@@ -355,6 +356,19 @@ SCRIPTS = [
                "(oversized screenshots are scaled to fit)",
         probe=_probe_phone_frame,
         func=_SCRIPT_FUNCS["Phone Frame Overlay"],
+    ),
+    ScriptEntry(
+        name="File Organizer",
+        category="Files",
+        what="Sort the loose files in the working folder into subfolders "
+             "by type (Images, Documents, ...) or by year-month.",
+        needs=["Files in the working folder (folders are never touched)"],
+        how=["Select this script, press Enter or R and pick By file type "
+             "or By year-month"],
+        output="Subfolders like Images/, Documents/ or 2025-01/ with the "
+               "files moved inside; name collisions get a numbered suffix",
+        probe=_probe_mixed_files,
+        func=_SCRIPT_FUNCS["File Organizer"],
     ),
 ]
 

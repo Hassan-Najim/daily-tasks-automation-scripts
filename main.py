@@ -23,11 +23,15 @@ SCRIPTS = {
         ("Image Format Converter", "scripts/image/image_format_converter/script.py"),
         ("Phone Frame Overlay", "scripts/image/phone_frame_overlay/script.py"),
     ],
+    "files": [
+        ("File Organizer", "scripts/files/file_organizer/script.py"),
+    ],
 }
 
 CATEGORY_NAMES = {
     "pdf": "PDF",
     "image": "Image",
+    "files": "Files",
 }
 
 
