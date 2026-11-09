@@ -89,6 +89,7 @@ _SCRIPTS_DIR = "scripts"
 
 # Display name -> relative path under scripts/
 _SCRIPT_FILES = {
+    "Everything to PDF": "pdf/everything_to_pdf/script.py",
     "Images to PDF": "pdf/images_to_pdf/script.py",
     "Images to PDF (Custom Aspect)": "pdf/images_to_pdf_custom_aspect/script.py",
     "Word to PDF": "pdf/word_to_pdf/script.py",
@@ -273,6 +274,24 @@ class ScriptEntry:
 
 
 SCRIPTS = [
+    ScriptEntry(
+        name="Everything to PDF",
+        category="PDF",
+        what="Combine every Word, Excel, PowerPoint, PDF and image file in "
+             "the working folder into one combined PDF.",
+        needs=["Word, Excel, PowerPoint, PDF and/or image files in the "
+               "working folder",
+               "Windows with Microsoft Office installed (Word/Excel/"
+               "PowerPoint files are exported with Office; files whose app "
+               "is missing are skipped with a warning)"],
+        how=["Put your files in the working folder (D to change it)",
+             "Select this script and press Enter or R"],
+        output="combined.pdf - every file converted and merged in name "
+               "order (Office files via Office, images become DPI-sized "
+               "pages, existing PDFs are appended)",
+        probe=_probe_everything,
+        func=_SCRIPT_FUNCS["Everything to PDF"],
+    ),
     ScriptEntry(
         name="Images to PDF",
         category="PDF",

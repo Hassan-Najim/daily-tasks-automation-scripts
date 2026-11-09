@@ -14,6 +14,7 @@ from pathlib import Path
 # Script registry: (display_name, relative_path_to_script)
 SCRIPTS = {
     "pdf": [
+        ("Everything to PDF", "scripts/pdf/everything_to_pdf/script.py"),
         ("Images to PDF", "scripts/pdf/images_to_pdf/script.py"),
         ("Images to PDF (Custom Aspect)", "scripts/pdf/images_to_pdf_custom_aspect/script.py"),
         ("Word to PDF", "scripts/pdf/word_to_pdf/script.py"),
