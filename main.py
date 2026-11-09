@@ -1,6 +1,8 @@
 """
 Automation Scripts - Main Menu
 A unified CLI to run all automation scripts from one place.
+Scripts live in scripts/<category>/<name>/ and operate on the folder this
+menu is launched from (same convention as the TUI's working directory).
 """
 
 import os
@@ -18,18 +20,14 @@ SCRIPTS = {
         ("PDF to Markdown", "scripts/pdf/pdf_to_md/script.py"),
     ],
     "image": [
-        ("Phone Frame Overlay", "scripts/image/phone_frame_overlay/script.py"),
         ("Image Format Converter", "scripts/image/image_format_converter/script.py"),
-    ],
-    "document": [
-        ("Word Find & Replace", "scripts/document/word_find_replace/script.py"),
+        ("Phone Frame Overlay", "scripts/image/phone_frame_overlay/script.py"),
     ],
 }
 
 CATEGORY_NAMES = {
     "pdf": "PDF",
     "image": "Image",
-    "document": "Document",
 }
 
 
@@ -47,14 +45,11 @@ def get_script_path(relative_path: str) -> Path:
 def run_script(script_path: Path) -> None:
     """
     Run a script by importing and calling its main() function.
+    The script operates on the current working directory.
     """
     if not script_path.exists():
         print(f"Error: Script not found at {script_path}")
         return
-
-    # Change to script directory so relative paths work
-    original_dir = os.getcwd()
-    os.chdir(script_path.parent)
 
     try:
         # Load the module
@@ -67,6 +62,7 @@ def run_script(script_path: Path) -> None:
         if hasattr(module, 'main'):
             print(f"\n{'='*50}")
             print(f"Running: {script_path.parent.name}")
+            print(f"Directory: {os.getcwd()}")
             print('='*50 + "\n")
             module.main()
         else:
@@ -74,7 +70,6 @@ def run_script(script_path: Path) -> None:
     except Exception as e:
         print(f"Error running script: {e}")
     finally:
-        os.chdir(original_dir)
         # Clean up
         if "script" in sys.modules:
             del sys.modules["script"]
