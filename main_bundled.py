@@ -94,6 +94,7 @@ _SCRIPT_FILES = {
     "Word to PDF": "pdf/word_to_pdf/script.py",
     "PDF to Markdown": "pdf/pdf_to_md/script.py",
     "Image Format Converter": "image/image_format_converter/script.py",
+    "Image Resizer": "image/image_resizer/script.py",
     "Phone Frame Overlay": "image/phone_frame_overlay/script.py",
     "File Organizer": "files/file_organizer/script.py",
     "Batch Renamer": "files/batch_renamer/script.py",
@@ -340,6 +341,21 @@ SCRIPTS = [
                "are skipped",
         probe=_probe_images,
         func=_SCRIPT_FUNCS["Image Format Converter"],
+    ),
+    ScriptEntry(
+        name="Image Resizer",
+        category="Image",
+        what="Batch resize or compress images: cap the longest side "
+             "(1920/1280 px), scale to 50%, or squeeze JPG/WEBP copies "
+             "under a target file size.",
+        needs=["Images (PNG, JPG, BMP, GIF, TIFF, WEBP, HEIC) in the "
+               "working folder"],
+        how=["Put your images in the working folder",
+             "Press Enter or R and pick a preset (Esc cancels)"],
+        output="A resized or compressed copy of each image; originals are "
+               "kept, target-size mode saves JPG copies",
+        probe=_probe_images,
+        func=_SCRIPT_FUNCS["Image Resizer"],
     ),
     ScriptEntry(
         name="Phone Frame Overlay",

@@ -21,6 +21,7 @@ SCRIPTS = {
     ],
     "image": [
         ("Image Format Converter", "scripts/image/image_format_converter/script.py"),
+        ("Image Resizer", "scripts/image/image_resizer/script.py"),
         ("Phone Frame Overlay", "scripts/image/phone_frame_overlay/script.py"),
     ],
     "files": [
