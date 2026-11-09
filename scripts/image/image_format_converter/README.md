@@ -6,7 +6,8 @@ Batch converts all images in the folder to a format you pick. Originals are kept
 
 ## NEEDS
 
-- Images (PNG, JPG, JPEG, BMP, GIF, TIF, TIFF, WEBP) in this folder
+- Images (PNG, JPG, BMP, GIF, TIFF, WEBP, HEIC) in this folder
+- HEIC support needs `pillow-heif` (installed with the top-level requirements)
 - Python packages: Pillow
 
 ## HOW
@@ -18,7 +19,8 @@ Batch converts all images in the folder to a format you pick. Originals are kept
 python script.py
 ```
 
-3. Pick a target format from the numbered list (PNG, JPG, BMP, GIF, TIFF, WEBP)
+3. Pick a target format from the list (PNG, JPG, BMP, GIF, TIFF, WEBP,
+   plus HEIC when pillow-heif is installed)
 
 ## OUTPUT
 

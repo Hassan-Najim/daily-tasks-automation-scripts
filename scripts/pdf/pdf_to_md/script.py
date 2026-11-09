@@ -8,9 +8,16 @@ Not supported: scanned PDFs (needs OCR), multi-column layouts, image
 extraction (images become placeholder comments).
 """
 
+import os
 import re
 from collections import Counter
 from pathlib import Path
+
+
+def p2m_natural_key(name):
+    """Sort key that orders numbers inside names sensibly (2 before 10)."""
+    return [int(part) if part.isdigit() else part.lower()
+            for part in re.split(r'(\d+)', name)]
 
 P2M_BULLETS = "\u2022\u25aa\u25e6\u25cf\u2023\u00b7\u2219"
 P2M_BULLET_WORD_RE = re.compile(rf"^[{P2M_BULLETS}]")
@@ -340,6 +347,16 @@ def p2m_lines_to_blocks(lines, body_size, doc_right):
 
 
 def p2m_render_table(rows) -> str:
+    # Drop fully empty rows, then fully empty columns - text-based table
+    # detection can add padding rows/columns that carry no content.
+    rows = [list(r) for r in rows
+            if any(c is not None and str(c).strip() for c in r)]
+    if rows:
+        width = max(len(r) for r in rows)
+        keep = [k for k in range(width)
+                if any(k < len(r) and r[k] is not None and str(r[k]).strip()
+                       for r in rows)]
+        rows = [[r[k] if k < len(r) else None for k in keep] for r in rows]
     if not rows:
         return ""
     width = max(len(r) for r in rows)
@@ -360,6 +377,165 @@ def p2m_render_table(rows) -> str:
     ]
     lines += ["| " + " | ".join(r) + " |" for r in grid[1:]]
     return "\n".join(lines)
+
+
+# Tables are detected two ways, ruled grids first:
+#   1. pdfplumber defaults (lines/lines) - fully ruled grids
+#   2. a self-built alignment detector (p2m_text_table_regions) for
+#     borderless tables: row-rules-only, outer-box-only, platypus-style
+#     and hand-typed whitespace-aligned tables
+# (pdfplumber's own "text" strategy was evaluated and dropped: on PDFs
+# with unusual font metrics its internal word splitting fragments words
+# into bogus cell edges. The self-built detector works from the same
+# clean word extraction the rest of the converter uses.)
+P2M_TABLE_STRATEGIES = (None,)
+
+P2M_TEXT_GAP_MIN = 8.0   # min column gutter in pt (word spaces are ~3)
+P2M_TEXT_MIN_ROWS = 3    # consecutive aligned rows required for a table
+
+
+def p2m_table_bbox_overlap(a, b) -> float:
+    """Fraction of the smaller bbox that the two bboxes share."""
+    x0, top = max(a[0], b[0]), max(a[1], b[1])
+    x1, bottom = min(a[2], b[2]), min(a[3], b[3])
+    if x1 <= x0 or bottom <= top:
+        return 0.0
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    return ((x1 - x0) * (bottom - top)) / max(min(area_a, area_b), 1e-6)
+
+
+def p2m_compact_table_rows(rows):
+    """Drop fully empty rows; return (kept_rows, kept_indices)."""
+    kept = [(i, r) for i, r in enumerate(rows)
+            if any(c is not None and str(c).strip() for c in r)]
+    indices = [i for i, _r in kept]
+    return [r for _i, r in kept], indices
+
+
+def p2m_row_filled_count(row) -> int:
+    return sum(1 for c in row if c is not None and str(c).strip())
+
+
+def p2m_table_quality_ok(rows) -> bool:
+    """Structural check for lines-strategy candidates: reject rects that
+    are not tables (e.g. single-row shaded bands such as zebra stripes)."""
+    if not rows or len(rows) < 2:
+        return False
+    width = max(len(r) for r in rows)
+    if width < 2 or width > 12:
+        return False
+    filled = sum(p2m_row_filled_count(r) for r in rows)
+    total = sum(len(r) for r in rows)
+    return bool(filled) and filled / total >= 0.4
+
+
+def p2m_cluster_lines(words):
+    """Group words into visual lines (tops within 3pt)."""
+    lines = []
+    for w in sorted(words, key=lambda w: (w["top"], w["x0"])):
+        if lines and w["top"] - lines[-1][0]["top"] <= 3:
+            lines[-1].append(w)
+        else:
+            lines.append([w])
+    for line in lines:
+        line.sort(key=lambda w: w["x0"])
+    return lines
+
+
+def p2m_line_segments(line):
+    """Split a visual line into column segments at wide gaps.
+
+    Word spaces are ~3pt; table columns are separated by visibly wider
+    gutters, so a gap threshold relative to the font size separates them.
+    """
+    gap_min = max(P2M_TEXT_GAP_MIN, 0.75 * max(w["size"] for w in line))
+    segments = [[line[0]]]
+    for prev, w in zip(line, line[1:]):
+        if w["x0"] - prev["x1"] >= gap_min:
+            segments.append([w])
+        else:
+            segments[-1].append(w)
+    return segments
+
+
+def p2m_run_columns_consistent(run):
+    """True when every line of the run has the same segment count and each
+    column boundary keeps one common whitespace channel. Left-aligned,
+    right-aligned and centered columns all satisfy this; prose, whose gap
+    positions wander from line to line, does not."""
+    count = len(run[0])
+    if any(len(segs) != count for segs in run):
+        return False
+    for k in range(count - 1):
+        channel_left = max(max(w["x1"] for w in segs[k]) for segs in run)
+        channel_right = min(min(w["x0"] for w in segs[k + 1])
+                            for segs in run)
+        if channel_left >= channel_right:
+            return False
+    return True
+
+
+def p2m_text_table_regions(page_words, existing):
+    """Detect borderless tables from word alignment alone.
+
+    A candidate table is a run of >= 3 consecutive visual lines whose
+    words split into >= 2 wide-gutter segments sharing consistent column
+    channels. Words inside already-found (ruled) tables are excluded so
+    ruled grids are never re-detected here.
+    """
+    words = [w for w in page_words if not p2m_word_in_tables(w, existing)]
+
+    def flush(run, found):
+        if len(run) < P2M_TEXT_MIN_ROWS:
+            return
+        if not p2m_run_columns_consistent(run):
+            return
+        rows = [[" ".join(w["text"] for w in seg) for seg in segs]
+                for segs in run]
+        flat = [w for segs in run for seg in segs for w in seg]
+        bbox = (min(w["x0"] for w in flat), min(w["top"] for w in flat),
+                max(w["x1"] for w in flat), max(w["bottom"] for w in flat))
+        if any(p2m_table_bbox_overlap(bbox, kept["bbox"]) > 0.5
+               for kept in found):
+            return
+        found.append({"bbox": bbox, "rows": rows})
+
+    found = []
+    run = []
+    for line in p2m_cluster_lines(words):
+        segments = p2m_line_segments(line)
+        if len(segments) >= 2:
+            run.append(segments)
+        else:
+            flush(run, found)
+            run = []
+    flush(run, found)
+    return found
+
+
+def p2m_detect_tables(page, pno, warnings, page_words):
+    """Find tables on a page: ruled grids first (pdfplumber lines
+    strategy), then borderless tables via word alignment. Earlier finds
+    win any region they claim, and their words are excluded from the
+    alignment pass so nothing is detected twice."""
+    found = []
+    for settings in P2M_TABLE_STRATEGIES:
+        try:
+            tables = page.find_tables(settings)
+        except Exception as exc:
+            warnings.append(f"page {pno}: table detection failed ({exc})")
+            continue
+        for table in tables:
+            rows, _indices = p2m_compact_table_rows(table.extract())
+            if not p2m_table_quality_ok(rows):
+                continue
+            if any(p2m_table_bbox_overlap(table.bbox, kept["bbox"]) > 0.5
+                   for kept in found):
+                continue
+            found.append({"bbox": table.bbox, "rows": rows})
+    found.extend(p2m_text_table_regions(page_words, found))
+    return found
 
 
 def p2m_zone_signature(words) -> str:
@@ -452,12 +628,7 @@ def p2m_convert(pdf_path):
                 warnings.append(f"page {pno} is rotated {rotation} degrees; "
                                 f"layout may be imperfect")
             words = p2m_page_words(page)
-            tables = []
-            try:
-                for table in page.find_tables():
-                    tables.append({"bbox": table.bbox, "rows": table.extract()})
-            except Exception as exc:
-                warnings.append(f"page {pno}: table detection failed ({exc})")
+            tables = p2m_detect_tables(page, pno, warnings, words)
             if tables:
                 words = [w for w in words if not p2m_word_in_tables(w, tables)]
             chars = sum(len(w["text"]) for w in words)
@@ -516,7 +687,8 @@ def p2m_convert(pdf_path):
 def convert_all_in_folder(folder: Path, log=print) -> None:
     """Convert every PDF in a folder to a sibling .md file."""
     pdfs = [
-        p for p in sorted(folder.iterdir())
+        p for p in sorted(folder.iterdir(),
+                          key=lambda p: p2m_natural_key(p.name))
         if p.is_file() and p.suffix.lower() == ".pdf" and not p.name.startswith("~$")
     ]
     if not pdfs:
@@ -565,11 +737,11 @@ def convert_all_in_folder(folder: Path, log=print) -> None:
         log("No failures.")
 
 
-def main():
-    """Run the converter on the current directory."""
-    folder = Path(__file__).resolve().parent
-    print(f"Folder: {folder}")
-    convert_all_in_folder(folder)
+def main(log=print, ask=None):
+    """Run the converter on the current working directory."""
+    folder = Path(os.getcwd())
+    log(f"Folder: {folder}")
+    convert_all_in_folder(folder, log=log)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ Places your screenshots inside a phone frame image for polished mockups.
 
 ## NEEDS
 
-- PNG screenshots in a `screens/` subfolder
+- Screenshots (PNG, JPG, BMP, GIF, TIFF, WEBP, HEIC) in a `screens/` subfolder
 - `frame.png` device mockup (with transparency) - both are created
   automatically on first run
 
@@ -18,7 +18,7 @@ Places your screenshots inside a phone frame image for polished mockups.
 python script.py
 ```
 
-2. Drop your PNG screenshots into `screens/`
+2. Drop your screenshots into `screens/`
 3. Run it again
 
 ## OUTPUT
@@ -29,7 +29,8 @@ python script.py
 
 - Replace the placeholder `frame.png` with any device mockup
   (transparent area where the screen shows)
-- Screenshots should be sized to fit within the frame's screen area
+- Screenshots larger than the frame are scaled down to fit
+- Framed copies are always saved as PNG
 
 ## Folder Structure
 

@@ -6,7 +6,7 @@ Combines images into a single PDF where each page keeps the image's real size an
 
 ## NEEDS
 
-- Images (PNG, JPG, JPEG, BMP, GIF, TIF, TIFF) in this folder
+- Images (PNG, JPG, BMP, GIF, TIFF, WEBP, HEIC) in this folder
 - Python packages: Pillow, reportlab
 
 ## HOW
@@ -24,20 +24,12 @@ python script.py
 - Respects embedded DPI metadata and EXIF rotation
 - Ordered naturally (img2 before img10)
 
-## Configuration
+## Page order
 
-Edit the `main()` function to change sorting:
+When run from the TUI you pick the order from a list (press Esc for the
+default); standalone runs default to natural order:
 
-```python
-# Sort by filename naturally (default) - Q2.png before Q10.png
-images_to_pdf(folder_path, output_pdf, order_by="natural")
-
-# Sort by file modification time
-images_to_pdf(folder_path, output_pdf, order_by="mtime")
-
-# Sort by EXIF date taken
-images_to_pdf(folder_path, output_pdf, order_by="exif")
-
-# Reverse any sort order
-images_to_pdf(folder_path, output_pdf, order_by="natural", reverse=True)
-```
+- Natural (1, 2, 10) - Q2.png before Q10.png
+- Name (A-Z)
+- Date modified
+- EXIF date taken

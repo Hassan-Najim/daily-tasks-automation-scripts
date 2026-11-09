@@ -1,26 +1,30 @@
 """
 Image Format Converter
-Batch converts all images in a folder to a chosen format (originals kept).
+Batch converts all images in the working folder to a chosen format
+(originals are kept). HEIC is supported when pillow-heif is installed.
 """
 
 import os
+import sys
+
+try:
+    import script_common as sc
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    import script_common as sc
+
 from PIL import Image
 
-
-SUPPORTED_FORMATS = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff', '.webp')
 TARGET_FORMATS = ['PNG', 'JPG', 'BMP', 'GIF', 'TIFF', 'WEBP']
-EXTS_BY_FORMAT = {'PNG': ('.png',), 'JPG': ('.jpg', '.jpeg'), 'BMP': ('.bmp',),
-                  'GIF': ('.gif',), 'TIFF': ('.tif', '.tiff'), 'WEBP': ('.webp',)}
+EXTS_BY_FORMAT = {'PNG': ('.png',), 'JPG': ('.jpg', '.jpeg'),
+                  'BMP': ('.bmp',), 'GIF': ('.gif',),
+                  'TIFF': ('.tif', '.tiff'), 'WEBP': ('.webp',),
+                  'HEIC': ('.heic', '.heif')}
 
 
-def convert_images(folder_path: str, target_format: str) -> None:
-    """
-    Convert all supported images in folder to the target format.
-
-    Args:
-        folder_path: Directory containing images
-        target_format: One of TARGET_FORMATS (e.g. 'PNG', 'JPG')
-    """
+def convert_images(folder_path, target_format, log=print):
+    """Convert all supported images in folder to the target format."""
     save_format = 'JPEG' if target_format == 'JPG' else target_format
     target_ext = EXTS_BY_FORMAT[target_format][0]
 
@@ -28,10 +32,14 @@ def convert_images(folder_path: str, target_format: str) -> None:
     skipped = 0
     failed = 0
 
-    for filename in sorted(os.listdir(folder_path)):
-        if not filename.lower().endswith(SUPPORTED_FORMATS):
-            continue
-        if filename.lower().endswith(EXTS_BY_FORMAT[target_format]):
+    filenames = sorted(
+        (f for f in os.listdir(folder_path)
+         if f.lower().endswith(sc.IMAGE_EXTS + sc.HEIC_EXTS)
+         and not f.startswith("~$")),
+        key=sc.natural_key)
+
+    for filename in filenames:
+        if filename.lower().endswith(EXTS_BY_FORMAT.get(target_format, ())):
             skipped += 1
             continue
 
@@ -60,44 +68,51 @@ def convert_images(folder_path: str, target_format: str) -> None:
                         img = img.convert('RGB')
                 img.save(new_filepath, save_format)
 
-            print(f"Converted: {filename} -> {new_filename}")
+            log(f"Converted: {filename} -> {new_filename}")
             converted += 1
         except Exception as e:
-            print(f"Failed to convert {filename}: {e}")
+            log(f"Failed: {filename}: {e}")
             failed += 1
 
-    print(f"\nConverted: {converted} image(s) to {target_format}")
+    log(f"\nConverted: {converted} image(s) to {target_format}")
     if skipped:
-        print(f"Skipped: {skipped} already in target format")
+        log(f"Skipped: {skipped} already in target format")
     if failed:
-        print(f"Failed: {failed}")
+        log(f"Failed: {failed}")
+    return converted
 
 
-def main():
-    """Run the converter on the current directory."""
-    folder_path = os.path.dirname(os.path.realpath(__file__))
+def main(log=print, ask=None):
+    folder_path = os.getcwd()
 
-    print(f"Folder: {folder_path}")
-    print(f"Supported formats: {', '.join(SUPPORTED_FORMATS)}")
-    print()
+    heic = sc.register_heif()
+    formats = TARGET_FORMATS + (['HEIC'] if heic else [])
 
     images = [f for f in os.listdir(folder_path)
-              if f.lower().endswith(SUPPORTED_FORMATS)]
+              if f.lower().endswith(sc.IMAGE_EXTS + sc.HEIC_EXTS)]
     if not images:
-        print("No supported images found.")
+        log("No supported images found in this folder.")
         return
 
-    print("Select target format:")
-    for i, fmt in enumerate(TARGET_FORMATS, 1):
-        print(f"  {i}. {fmt}")
-    raw = input(f"Choice [1-{len(TARGET_FORMATS)}]: ").strip()
-    if not (raw.isdigit() and 1 <= int(raw) <= len(TARGET_FORMATS)):
-        print("Cancelled.")
-        return
-    target_format = TARGET_FORMATS[int(raw) - 1]
+    log(f"Folder: {folder_path}")
+    log("Supported: "
+        + ", ".join(ext.lstrip('.') for ext in sc.IMAGE_EXTS + sc.HEIC_EXTS))
 
-    convert_images(folder_path, target_format)
-    print("Done!")
+    choice = None
+    if ask is not None:
+        choice = ask("Select target format", formats)
+    else:
+        log("Select target format:")
+        for i, fmt in enumerate(formats, 1):
+            log(f"  {i}. {fmt}")
+        raw = input(f"Choice [1-{len(formats)}]: ").strip()
+        if raw.isdigit() and 1 <= int(raw) <= len(formats):
+            choice = formats[int(raw) - 1]
+    if not choice:
+        log("Cancelled.")
+        return
+
+    convert_images(folder_path, choice, log=log)
 
 
 if __name__ == "__main__":

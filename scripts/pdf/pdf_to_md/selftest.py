@@ -124,6 +124,70 @@ def make_scanned(path, full=True):
 CHECKS = []
 
 
+def make_table_pdf(path, data, style_commands, font="Helvetica"):
+    """Shared generator: prose + table + prose, table styled by commands."""
+    c = canvas.Canvas(str(path), pagesize=letter)
+    c.setFont("Helvetica", 12)
+    c.drawString(72, 700, f"Intro line before the {data[0][0]} table.")
+    table = Table(data, colWidths=[120, 80])
+    base = [("FONT", (0, 0), (-1, -1), font, 10)]
+    table.setStyle(TableStyle(base + style_commands))
+    table.wrapOn(c, 400, 300)
+    table.drawOn(c, 72, 500)
+    c.drawString(72, 440, f"Closing line after the {data[0][0]} table.")
+    c.save()
+
+
+def make_table_grid(path):
+    """Method 1: fully ruled grid (reportlab TableStyle GRID)."""
+    make_table_pdf(
+        path,
+        [["City", "Pop"], ["Paris", "2100"], ["Tokyo", "1400"],
+         ["Lima", "1100"]],
+        [("GRID", (0, 0), (-1, -1), 0.5, "black")])
+
+def make_table_row_rules(path):
+    """Method 2: horizontal row rules only, no vertical lines."""
+    make_table_pdf(
+        path,
+        [["Planet", "Moons"], ["Mars", "2"], ["Jupiter", "95"],
+         ["Saturn", "83"]],
+        [("LINEABOVE", (0, 0), (-1, 0), 0.5, "black"),
+         ("LINEBELOW", (0, 0), (-1, -1), 0.5, "black")])
+
+def make_table_box_only(path):
+    """Method 3: outer box border only, no inner ruling."""
+    make_table_pdf(
+        path,
+        [["Lang", "Year"], ["Python", "1991"], ["Rust", "2010"]],
+        [("BOX", (0, 0), (-1, -1), 0.5, "black")])
+
+def make_table_borderless(path):
+    """Method 4: reportlab Table with no borders at all."""
+    make_table_pdf(
+        path,
+        [["Animal", "Lifespan"], ["Cat", "15"], ["Tortoise", "120"]],
+        [])
+
+def make_table_courier(path):
+    """Method 5: hand-typed columns - raw drawString at fixed x positions
+    in monospace, no Table object involved."""
+    c = canvas.Canvas(str(path), pagesize=letter)
+    rows = [["Item", "Price"], ["Coffee", "4.50"], ["Tea", "3.25"],
+            ["Cocoa", "5.10"]]
+    columns = (72, 260)
+    c.setFont("Helvetica", 12)
+    c.drawString(72, 700, "Intro line before the Item table.")
+    y = 640
+    for row in rows:
+        c.setFont("Courier", 11)
+        for x, value in zip(columns, row):
+            c.drawString(x, y, value)
+        y -= 16
+    c.drawString(72, y - 20, "Closing line after the Item table.")
+    c.save()
+
+
 def check(name, md, expected, present=True):
     ok = (expected in md) if present else (expected not in md)
     CHECKS.append((name, ok, expected, present))
@@ -138,6 +202,11 @@ def main():
     make_running_heads(WORK / "running_heads.pdf")
     make_scanned(WORK / "partially_scanned.pdf", full=False)
     make_scanned(WORK / "fully_scanned.pdf", full=True)
+    make_table_grid(WORK / "table_grid.pdf")
+    make_table_row_rules(WORK / "table_row_rules.pdf")
+    make_table_box_only(WORK / "table_box_only.pdf")
+    make_table_borderless(WORK / "table_borderless.pdf")
+    make_table_courier(WORK / "table_courier.pdf")
 
     log_lines = []
     script.convert_all_in_folder(WORK, log=log_lines.append)
@@ -180,6 +249,33 @@ def main():
         check("partial scanned image note", md, "<!-- image: page 2, 200x150pt -->")
     else:
         CHECKS.append(("partially_scanned.md created", False, "file missing", True))
+
+    table_cases = {
+        "table_grid": [["City", "Pop"], ["Paris", "2100"], ["Tokyo", "1400"],
+                       ["Lima", "1100"]],
+        "table_row_rules": [["Planet", "Moons"], ["Mars", "2"],
+                            ["Jupiter", "95"], ["Saturn", "83"]],
+        "table_box_only": [["Lang", "Year"], ["Python", "1991"],
+                           ["Rust", "2010"]],
+        "table_borderless": [["Animal", "Lifespan"], ["Cat", "15"],
+                             ["Tortoise", "120"]],
+        "table_courier": [["Item", "Price"], ["Coffee", "4.50"],
+                          ["Tea", "3.25"], ["Cocoa", "5.10"]],
+    }
+    for stem, rows in table_cases.items():
+        md_path = WORK / f"{stem}.md"
+        if not md_path.exists():
+            CHECKS.append((f"{stem}.md created", False, "file missing", True))
+            continue
+        md = md_path.read_text(encoding="utf-8")
+        for row in rows:
+            check(f"{stem}: row {' | '.join(row)}", md,
+                  "| " + " | ".join(row) + " |")
+        kind = rows[0][0]
+        check(f"{stem}: prose before table kept", md,
+              f"Intro line before the {kind} table.")
+        check(f"{stem}: prose after table kept", md,
+              f"Closing line after the {kind} table.")
 
     check("fully scanned rejected", log, "appears to be scanned")
     check("fully scanned no md", "exists" if (WORK / "fully_scanned.md").exists() else "",
