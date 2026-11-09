@@ -96,6 +96,7 @@ _SCRIPT_FILES = {
     "Image Format Converter": "image/image_format_converter/script.py",
     "Phone Frame Overlay": "image/phone_frame_overlay/script.py",
     "File Organizer": "files/file_organizer/script.py",
+    "Batch Renamer": "files/batch_renamer/script.py",
 }
 
 
@@ -369,6 +370,22 @@ SCRIPTS = [
                "files moved inside; name collisions get a numbered suffix",
         probe=_probe_mixed_files,
         func=_SCRIPT_FUNCS["File Organizer"],
+    ),
+    ScriptEntry(
+        name="Batch Renamer",
+        category="Files",
+        what="Rename all files in the working folder with one rule: "
+             "sequence numbers, lowercase-with-dashes, or a YYYYMMDD "
+             "date stamp.",
+        needs=["Files in the working folder"],
+        how=["Select this script, press Enter or R and pick a renaming "
+             "rule",
+             "Check the preview (old -> new) and confirm - nothing is "
+             "changed until you do"],
+        output="Renamed files in the working folder; name collisions get "
+               "a numbered suffix",
+        probe=_probe_mixed_files,
+        func=_SCRIPT_FUNCS["Batch Renamer"],
     ),
 ]
 

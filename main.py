@@ -25,6 +25,7 @@ SCRIPTS = {
     ],
     "files": [
         ("File Organizer", "scripts/files/file_organizer/script.py"),
+        ("Batch Renamer", "scripts/files/batch_renamer/script.py"),
     ],
 }
 
